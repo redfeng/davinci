@@ -1,7 +1,7 @@
 import UAParser from 'ua-parser-js'
 import moment, { Moment } from 'moment'
-import request from '../../utils/request'
-import api from '../../utils/api'
+import request from 'utils/request'
+import api from 'utils/api'
 
 export interface IUserData {
     user_id?: number
@@ -40,6 +40,7 @@ export interface ITerminal extends IUserData {
     device_type: string
     device_vendor: string
     cpu_architecture: string
+    create_time: string
 }
 
 
@@ -62,7 +63,8 @@ class Statistic {
         device_model: device.model,
         device_type: device.type,
         device_vendor: device.vendor,
-        cpu_architecture: cpu.architecture
+        cpu_architecture: cpu.architecture,
+        create_time: this.getCurrentDateTime()
        })
        this.setDuration({
         start_time: '',
@@ -85,10 +87,8 @@ class Statistic {
        Reflect.defineProperty(that.clock, 'checkTime', {
            configurable: true,
            set (value) {
-            //    console.log(value)
                const time = that.getClock()
                if (time >= 30) {
-                   // 只执行1次
                    that.onceSetDurations({
                        end_time: that.getCurrentDateTime()
                    }, (data) => {
@@ -128,7 +128,7 @@ class Statistic {
             return void 0
           }
         }
-      }
+    }
 
     public startClock = () => {
         this.resetClock()
@@ -189,12 +189,16 @@ class Statistic {
         return
     }
 
+    public PromiseObject = () => {
+        return Promise.resolve(1)
+    }
     public sendDuration = (body) => {
         const url = `${api.buriedPoints}/duration`
         return request(url, {
             method: 'post',
             data: body
         })
+      //  return this.PromiseObject()
     }
 
     public sendTerminal = (body) => {
@@ -203,14 +207,16 @@ class Statistic {
             method: 'post',
             data: [body]
         })
+       // return this.PromiseObject()
     }
 
     public sendOperation = (body) => {
         const url = `${api.buriedPoints}/visitoroperation`
         return request(url, {
             method: 'post',
-            data: [body]
+            data: body
         })
+      //  return this.PromiseObject()
     }
 
     public getClock = () => this.clock['time']
@@ -226,7 +232,8 @@ class Statistic {
             device_model,
             device_type,
             device_vendor,
-            cpu_architecture
+            cpu_architecture,
+            create_time
         } = options as ITerminal
         this.terminalRecord = {
             browser_name:  browser_name || '' ,
@@ -239,6 +246,7 @@ class Statistic {
             device_type:  device_type || '',
             device_vendor:  device_vendor || '',
             cpu_architecture:  cpu_architecture || '',
+            create_time: create_time || '',
             ...this.userData
         }
     }

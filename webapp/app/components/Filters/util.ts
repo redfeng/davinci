@@ -25,13 +25,14 @@ import {
   IControlBase,
   IControlRelatedField,
   IRenderTreeItem,
-  InteractionType
+  InteractionType,
+  IFilters
 } from './types'
 import { uuid } from 'app/utils/util'
 import FilterTypes, { FilterTypesOperatorSetting, IS_RANGE_TYPE } from './filterTypes'
-import { DEFAULT_CACHE_EXPIRED, SQL_NUMBER_TYPES } from 'app/globalConstants'
+import { DEFAULT_CACHE_EXPIRED, SQL_NUMBER_TYPES, SQL_DATE_TYPES } from 'app/globalConstants'
 import { IFormedView, IViewModelProps, IViewVariable } from 'app/containers/View/types'
-import { ViewVariableValueTypes, ViewVariableTypes } from 'app/containers/View/constants'
+import { ViewVariableValueTypes, ViewVariableTypes, ViewModelTypes } from 'app/containers/View/constants'
 import DatePickerFormats, { DatePickerDefaultValues, DatePickerFormatsSelectSetting } from './datePickerFormats'
 import OperatorTypes from 'app/utils/operatorTypes'
 
@@ -139,36 +140,57 @@ export function getVariableValue (filter: IControlBase, fields: IControlRelatedF
   return variable
 }
 
+// 全局过滤器 与 本地控制器 filter 操作
 export function getModelValue (control: IControlBase, field: IControlRelatedField, value) {
-  const { type, dateFormat, multiple, operator } = control
+  const { type, dateFormat, multiple, operator } = control  // select  ''  true in
   const { name, type: sqlType } = field
   const filters = []
-
   if (value === void 0
       || value === null
       || typeof value === 'string' && !value.trim()) {
     return filters
   }
 
+  const commanFilterJson: IFilters = {
+    name,
+    type: 'filter',
+    value: getValidColumnValue(value, sqlType),
+    sqlType,
+    operator
+  }
   switch (type) {
     case FilterTypes.InputText:
-      filters.push(`${name} ${operator} ${getValidColumnValue(value, sqlType)}`)
+      filters.push(commanFilterJson)
       break
     case FilterTypes.Select:
       if (multiple) {
         if (value.length && value.length > 0) {
-          filters.push(`${name} ${operator} (${value.map((val) => getValidColumnValue(val, sqlType)).join(',')})`)
+          const filterJson = {
+            ...commanFilterJson,
+            value: value.map((val) => getValidColumnValue(val, sqlType))
+          }
+          filters.push(filterJson)
         }
       } else {
-        filters.push(`${name} ${operator} ${getValidColumnValue(value, sqlType)}`)
+          filters.push(commanFilterJson)
       }
       break
     case FilterTypes.NumberRange:
       if (value[0] !== '' && !isNaN(value[0])) {
-        filters.push(`${name} >= ${getValidColumnValue(value[0], sqlType)}`)
+        const filterJson = {
+          ...commanFilterJson,
+          operator: '>=',
+          value: getValidColumnValue(value[0], sqlType)
+        }
+        filters.push(filterJson)
       }
       if (value[1] !== '' && !isNaN(value[1])) {
-        filters.push(`${name} <= ${getValidColumnValue(value[1], sqlType)}`)
+        const filterJson = {
+          ...commanFilterJson,
+          operator: '<=',
+          value: getValidColumnValue(value[1], sqlType)
+        }
+        filters.push(filterJson)
       }
       break
     // case FilterTypes.TreeSelect:
@@ -178,25 +200,46 @@ export function getModelValue (control: IControlBase, field: IControlRelatedFiel
     //   break
     case FilterTypes.Date:
       if (multiple) {
-        filters.push(`${name} ${operator} (${value.split(',').map((val) => getValidColumnValue(val, sqlType)).join(',')})`)
+        const filterJson = {
+          ...commanFilterJson,
+          value: value.split(',').map((val) => getValidColumnValue(val, sqlType))
+        }
+        filters.push(filterJson)
       } else {
-        filters.push(`${name} ${operator} ${getValidColumnValue(moment(value).format(dateFormat), sqlType)}`)
+        const filterJson = {
+          ...commanFilterJson,
+          value: getValidColumnValue(moment(value).format(dateFormat), sqlType)
+        }
+        filters.push(filterJson)
       }
       break
     case FilterTypes.DateRange:
       if (value.length) {
-        filters.push(`${name} >= ${getValidColumnValue(moment(value[0]).format(dateFormat), sqlType)}`)
-        filters.push(`${name} <= ${getValidColumnValue(moment(value[1]).format(dateFormat), sqlType)}`)
+        const filterJson1 = {
+          ...commanFilterJson,
+          operator: '>=',
+          value: getValidColumnValue(moment(value[0]).format(dateFormat), sqlType)
+        }
+        const filterJson2 = {
+          ...commanFilterJson,
+          operator: '<=',
+          value: getValidColumnValue(moment(value[1]).format(dateFormat), sqlType)
+        }
+        filters.push(filterJson1)
+        filters.push(filterJson2)
       }
       break
     default:
       const inputValue = value.target.value.trim()
+      const filterJson = {
+        ...commanFilterJson,
+        value: getValidColumnValue(inputValue, sqlType)
+      }
       if (inputValue) {
-        filters.push(`${name} ${operator} ${getValidColumnValue(inputValue, sqlType)}`)
+        filters.push(filterJson)
       }
       break
   }
-
   return filters
 }
 
@@ -372,7 +415,11 @@ export function getRelatedFieldsInfo (
   fields: IControlRelatedField | IControlRelatedField[]
 } {
   const model = Object.entries(view.model)
-    .filter(([k, v]: [string, IViewModelProps]) => v.modelType === 'category')
+    .filter(([k, v]: [string, IViewModelProps]) => {
+      return type === FilterTypes.NumberRange
+        ? v.modelType === ViewModelTypes.Value
+        : v.modelType === ViewModelTypes.Category
+    })
     .map(([k, v]: [string, IViewModelProps]) => ({
       name: k,
       ...v

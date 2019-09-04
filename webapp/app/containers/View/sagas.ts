@@ -256,7 +256,7 @@ export function* getViewDataFromVizItem (action: ViewActionType) {
       method: 'post',
       url: `${api.view}/${viewId}/getdata`,
       data: {
-        ...rest,
+        ...omit(rest, 'customOrders'),
         filters: filters.concat(tempFilters).concat(linkageFilters).concat(globalFilters),
         params: variables.concat(linkageVariables).concat(globalVariables),
         pageSize,
@@ -266,7 +266,7 @@ export function* getViewDataFromVizItem (action: ViewActionType) {
     })
     const { resultList } = asyncData.payload
     asyncData.payload.resultList = (resultList && resultList.slice(0, 500)) || []
-    yield put(viewDataFromVizItemLoaded(renderType, itemId, requestParams, asyncData.payload, vizType))
+    yield put(viewDataFromVizItemLoaded(renderType, itemId, requestParams, asyncData.payload, vizType, action.statistic))
   } catch (err) {
     yield put(loadViewDataFromVizItemFail(itemId, vizType, getErrorMessage(err)))
   }

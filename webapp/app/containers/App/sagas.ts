@@ -53,10 +53,9 @@ import {
   DownloadTaskInitiated,
   initiateDownloadTaskFail
 } from './actions'
-import request, { removeToken, getToken } from '../../utils/request'
-// import request from '../../utils/request'
-import api from '../../utils/api'
-import { errorHandler } from '../../utils/util'
+import request, { removeToken, getToken } from 'utils/request'
+import api from 'utils/api'
+import { errorHandler } from 'utils/util'
 
 export function* login (action): IterableIterator<any> {
   const { username, password, resolve } = action.payload
@@ -82,8 +81,7 @@ export function* login (action): IterableIterator<any> {
 
 export function* logout (): IterableIterator<any> {
   try {
-    localStorage.removeItem('TOKEN')
-    localStorage.removeItem('TOKEN_EXPIRE')
+    removeToken()
     localStorage.removeItem('loginUser')
   } catch (err) {
     errorHandler(err)
@@ -235,7 +233,6 @@ export function* joinOrganization (action): IterableIterator<any> {
       switch (error.response.status) {
         case 403:
           removeToken()
-          localStorage.removeItem('TOKEN')
           break
         case 400:
           console.log({error})
@@ -299,7 +296,7 @@ export function* initiateDownloadTask (action): IterableIterator<any> {
       data: downloadParams
     })
     message.success('下载任务创建成功！')
-    yield put(DownloadTaskInitiated(type, itemId))
+    yield put(DownloadTaskInitiated(type, itemId, downloadParams))
   } catch (err) {
     yield put(initiateDownloadTaskFail(err))
     errorHandler(err)

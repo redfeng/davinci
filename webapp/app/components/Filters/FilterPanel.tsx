@@ -93,7 +93,6 @@ export class FilterPanel extends Component<IFilterPanelProps & FormComponentProp
         })
 
         const defaultFilterValue = deserializeDefaultValue(control)
-        console.log(defaultFilterValue)
         if (defaultFilterValue) {
           controlValues[control.key] = defaultFilterValue
           this.setControlRequestParams(control, defaultFilterValue, currentItems)
@@ -225,8 +224,8 @@ export class FilterPanel extends Component<IFilterPanelProps & FormComponentProp
     const childrenKeys = getAllChildren(key, flatTree)
     const relatedItemIds = []
 
-    console.log(control)
-    console.log(currentItems)
+    // console.log(control)
+    // console.log(currentItems)
     const controlValues = {
       ...this.state.controlValues,
       [key]: val

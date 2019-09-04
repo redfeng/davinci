@@ -29,15 +29,19 @@ import injectSaga from 'utils/injectSaga'
 import reducer from './reducer'
 import saga from './sagas'
 
+import { FieldSortTypes } from 'containers/Widget/components/Config/Sort'
+import { widgetDimensionMigrationRecorder } from 'utils/migrationRecorders'
+
 import Container from 'app/components/Container'
 import { getMappingLinkage, processLinkage, removeLinkage } from 'components/Linkages'
 import DashboardItem from 'app/containers/Dashboard/components/DashboardItem'
 import FullScreenPanel from 'app/containers/Dashboard/components/fullScreenPanel/FullScreenPanel'
 import { Responsive, WidthProvider } from '../../../libs/react-grid-layout'
 import { ChartTypes } from 'app/containers/Widget/config/chart/ChartTypes'
-import { IMapItemControlRequestParams, IMapControlOptions } from 'app/components/Filters/types'
+import { IMapItemControlRequestParams, IMapControlOptions, IFilters } from 'app/components/Filters/types'
 import GlobalControlPanel from 'app/components/Filters/FilterPanel'
 import DownloadList from 'app/components/DownloadList'
+import {getValidColumnValue} from 'app/components/Filters/util'
 
 import { RenderType, IWidgetConfig, IWidgetProps } from 'app/containers/Widget/components/Widget'
 import { ViewActions } from 'app/containers/View/actions'
@@ -375,12 +379,18 @@ export class Share extends React.Component<IDashboardProps, IDashboardStates> {
     const widget = widgets.find((w) => w.id === widgetId)
     const widgetConfig: IWidgetConfig = JSON.parse(widget.config)
     const { cols, rows, metrics, secondaryMetrics, filters, color, label, size, xAxis, tip, orders, cache, expired } = widgetConfig
+    const updatedCols = cols.map((col) => widgetDimensionMigrationRecorder(col))
+    const updatedRows = rows.map((row) => widgetDimensionMigrationRecorder(row))
+    const customOrders = updatedCols.concat(updatedRows)
+      .filter(({ sort }) => sort && sort.sortType === FieldSortTypes.Custom)
+      .map(({ name, sort }) => ({ name, list: sort[FieldSortTypes.Custom].sortList }))
 
     const cachedQueryConditions = currentItemsInfo[itemId].queryConditions
 
     let tempFilters
     let linkageFilters
     let globalFilters
+    let tempOrders
     let variables
     let linkageVariables
     let globalVariables
@@ -392,6 +402,7 @@ export class Share extends React.Component<IDashboardProps, IDashboardStates> {
       tempFilters = queryConditions.tempFilters !== void 0 ? queryConditions.tempFilters : cachedQueryConditions.tempFilters
       linkageFilters = queryConditions.linkageFilters !== void 0 ? queryConditions.linkageFilters : cachedQueryConditions.linkageFilters
       globalFilters = queryConditions.globalFilters !== void 0 ? queryConditions.globalFilters : cachedQueryConditions.globalFilters
+      tempOrders = queryConditions.orders !== void 0 ? queryConditions.orders : cachedQueryConditions.orders
       variables = queryConditions.variables || cachedQueryConditions.variables
       linkageVariables = queryConditions.linkageVariables || cachedQueryConditions.linkageVariables
       globalVariables = queryConditions.globalVariables || cachedQueryConditions.globalVariables
@@ -402,6 +413,7 @@ export class Share extends React.Component<IDashboardProps, IDashboardStates> {
       tempFilters = cachedQueryConditions.tempFilters
       linkageFilters = cachedQueryConditions.linkageFilters
       globalFilters = cachedQueryConditions.globalFilters
+      tempOrders = cachedQueryConditions.orders
       variables = cachedQueryConditions.variables
       linkageVariables = cachedQueryConditions.linkageVariables
       globalVariables = cachedQueryConditions.globalVariables
@@ -457,28 +469,39 @@ export class Share extends React.Component<IDashboardProps, IDashboardStates> {
           func: t.agg
         })))
     }
+    let requestParamsFilters = []
+    filters.forEach((item) => {
+      requestParamsFilters = requestParamsFilters.concat(item.config.sqlModel)
+    })
+
+    const requestParams = {
+      groups: drillStatus && drillStatus.groups ? drillStatus.groups : groups,
+      aggregators,
+      filters: drillStatus && drillStatus.filter ? drillStatus.filter.sqls : requestParamsFilters,
+      tempFilters,
+      linkageFilters,
+      globalFilters,
+      variables,
+      linkageVariables,
+      globalVariables,
+      orders,
+      cache,
+      expired,
+      flush: renderType === 'refresh',
+      pagination,
+      nativeQuery,
+      customOrders
+    }
+
+    if (tempOrders) {
+      requestParams.orders = requestParams.orders.concat(tempOrders)
+    }
 
     callback(
       renderType,
       itemId,
       widget.dataToken,
-      {
-        groups: drillStatus && drillStatus.groups ? drillStatus.groups : groups,
-        aggregators,
-        filters: drillStatus && drillStatus.filter ? drillStatus.filter.sqls : filters.map((i) => i.config.sql),
-        tempFilters,
-        linkageFilters,
-        globalFilters,
-        variables,
-        linkageVariables,
-        globalVariables,
-        orders,
-        cache,
-        expired,
-        flush: renderType === 'refresh',
-        pagination,
-        nativeQuery
-      }
+      requestParams
     )
   }
 
@@ -696,7 +719,12 @@ export class Share extends React.Component<IDashboardProps, IDashboardStates> {
     let widgetConfigRows = []
     let widgetConfigCols = []
     const coustomTableSqls = []
-    let sqls = widgetConfig.filters.map((i) => i.config.sql)
+    // let sqls = widgetConfig.filters.map((i) => i.config.sql)
+    let sqls = []
+    widgetConfig.filters.forEach((item) => {
+      sqls = sqls.concat(item.config.sqlModel)
+    })
+
     if ((!drillHistory) || drillHistory.length === 0) {
       let currentCol = void 0
       if (widgetConfig) {
@@ -726,7 +754,15 @@ export class Share extends React.Component<IDashboardProps, IDashboardStates> {
           }, {})
           for (const attr in coustomTable) {
             if (coustomTable[attr] !== undefined && attr) {
-              coustomTableSqls.push(`${attr} in (${coustomTable[attr].map((key) => `'${key}'`).join(',')})`)
+              const filterJson: IFilters = {
+                name: attr,
+                operator: 'in',
+                type: 'filter',
+                value: coustomTable[attr].map((val) => getValidColumnValue(val, 'VARCHAR')),
+                sqlType: 'VARCHAR'
+              }
+              coustomTableSqls.push(filterJson)
+             // coustomTableSqls.push(`${attr} in (${coustomTable[attr].map((key) => `'${key}'`).join(',')})`)
             }
           }
           const drillKey = sourceDataFilter[sourceDataFilter.length - 1]['key']
@@ -747,7 +783,14 @@ export class Share extends React.Component<IDashboardProps, IDashboardStates> {
       })
       if (name && name.length) {
         currentCol = col && col.length ? widgetConfigCols.concat([{name: col}]) : void 0
-        sql = `${name} in (${filterSource.map((key) => `'${key}'`).join(',')})`
+        sql = {
+          name,
+          operator: 'in',
+          type: 'filter',
+          value: filterSource.map((val) => getValidColumnValue(val, 'VARCHAR')),
+          sqlType: 'VARCHAR'
+        }
+        // sql = `${name} in (${filterSource.map((key) => `'${key}'`).join(',')})`
         sqls.push(sql)
       }
       if (Array.isArray(coustomTableSqls) && coustomTableSqls.length > 0) {
@@ -796,7 +839,15 @@ export class Share extends React.Component<IDashboardProps, IDashboardStates> {
         }, {})
         for (const attr in coustomTable) {
           if (coustomTable[attr] !== undefined && attr) {
-            coustomTableSqls.push(`${attr} in (${coustomTable[attr].map((key) => `'${key}'`).join(',')})`)
+            const filterJson: IFilters = {
+              name: attr,
+              operator: 'in',
+              type: 'filter',
+              value: coustomTable[attr].map((val) => getValidColumnValue(val, 'VARCHAR')),
+              sqlType: 'VARCHAR'
+            }
+            coustomTableSqls.push(filterJson)
+          //  coustomTableSqls.push(`${attr} in (${coustomTable[attr].map((key) => `'${key}'`).join(',')})`)
           }
         }
         if (Array.isArray(coustomTableSqls) && coustomTableSqls.length > 0) {
@@ -817,7 +868,14 @@ export class Share extends React.Component<IDashboardProps, IDashboardStates> {
       } else {
         name = lastDrillHistory.groups[lastDrillHistory.groups.length - 1]
         filterSource = sourceDataFilter.map((source) => source[name])
-        sql = `${name} in (${filterSource.map((key) => `'${key}'`).join(',')})`
+       // sql = `${name} in (${filterSource.map((key) => `'${key}'`).join(',')})`
+        sql = {
+          name,
+          operator: 'in',
+          type: 'filter',
+          value: filterSource.map((val) => getValidColumnValue(val, 'VARCHAR')),
+          sqlType: 'VARCHAR'
+        }
         sqls = lastDrillHistory.filter.sqls.concat(sql)
         currentCol = col && col.length ? (lastDrillHistory.col || []).concat({name: col}) : lastDrillHistory.col
         currentRow = row && row.length ? (lastDrillHistory.row || []).concat({name: row}) : lastDrillHistory.row

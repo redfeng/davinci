@@ -19,7 +19,7 @@ import {
   PIVOT_XAXIS_TICK_SIZE,
   PIVOT_CANVAS_AXIS_SIZE_LIMIT,
   PIVOT_DEFAULT_SCATTER_SIZE_TIMES
-} from '../../../globalConstants'
+} from 'app/globalConstants'
 import { DimetionType, IChartStyles, IChartInfo } from './Widget'
 import { IChartLine, IChartUnit } from './Pivot/Chart'
 import { IDataParamSource } from './Workbench/Dropbox'
@@ -30,7 +30,7 @@ import PivotTypes from '../config/pivot/PivotTypes'
 import ChartTypes from '../config/chart/ChartTypes'
 const pivotlibs = widgetlibs['pivot']
 const chartlibs = widgetlibs['chart']
-import { uuid } from '../../../utils/util'
+import { uuid } from 'utils/util'
 
 export function getAggregatorLocale (agg) {
   switch (agg) {
@@ -240,30 +240,33 @@ export function getChartUnitMetricHeight (tableBodyHeight, rowKeyCount: number, 
   return realContainerHeight / rowKeyCount / metricCount
 }
 
-export function checkChartEnable (dimetionsCount: number, metricsCount: number, charts: IChartInfo | IChartInfo[]): boolean {
+export function checkChartEnable (dimensionCount: number, metricCount: number, charts: IChartInfo | IChartInfo[]): boolean {
   const chartArr = Array.isArray(charts) ? charts : [charts]
-  for (const chart of chartArr) {
-    const { requireDimetions, requireMetrics } = chart
-    if (Array.isArray(requireDimetions)) {
-      if (dimetionsCount < requireDimetions[0] || dimetionsCount > requireDimetions[1]) {
+
+  const enabled = chartArr.every(({ rules }) => {
+    const currentRulesChecked = rules.some(({ dimension, metric }) => {
+      if (Array.isArray(dimension)) {
+        if (dimensionCount < dimension[0] || dimensionCount > dimension[1]) {
+          return false
+        }
+      } else if (dimensionCount !== dimension) {
         return false
       }
-    } else {
-      if (dimetionsCount !== requireDimetions) {
+
+      if (Array.isArray(metric)) {
+        if (metricCount < metric[0] || metricCount > metric[1]) {
+          return false
+        }
+      } else if (metricCount !== metric) {
         return false
       }
-    }
-    if (Array.isArray(requireMetrics)) {
-      if (metricsCount < requireMetrics[0] || metricsCount > requireMetrics[1]) {
-        return false
-      }
-    } else {
-      if (metricsCount !== requireMetrics) {
-        return false
-      }
-    }
-  }
-  return true
+
+      return true
+    })
+    return currentRulesChecked
+  })
+
+  return enabled
 }
 
 export function getAxisInterval (max, splitNumber) {
@@ -319,12 +322,6 @@ export function getStyleConfig (chartStyles: IChartStyles): IChartStyles {
     ...chartStyles,
     pivot: chartStyles.pivot || {...getPivot().style['pivot']}  // FIXME 兼容0.3.0-beta 数据库
   }
-}
-
-export function getChartViewMetrics (metrics, requireMetrics) {
-  const auxiliaryMetrics = Math.max((Array.isArray(requireMetrics) ? requireMetrics[0] : requireMetrics) - 1, 0)
-  metrics.slice().splice(1, auxiliaryMetrics)
-  return metrics
 }
 
 export function getAxisData (type: 'x' | 'y', rowKeys, colKeys, rowTree, colTree, tree, metrics, drawingData, dimetionAxis) {
@@ -599,12 +596,14 @@ export function getChartTooltipLabel (type, seriesData, options) {
   }, [])
 
   return function (params) {
-    const { seriesIndex, dataIndex } = params
+    const { seriesIndex, dataIndex, color } = params
     const record = (type === 'funnel' || type === 'map')
       ? seriesData[dataIndex]
       : seriesData[seriesIndex][dataIndex]
-    return dimentionColumns
-      .map((dc) => {
+    let tooltipLabels = []
+
+    tooltipLabels = tooltipLabels.concat(
+      dimentionColumns.map((dc) => {
         let value = record
           ? Array.isArray(record)
             ? record[0][dc.name]
@@ -613,7 +612,10 @@ export function getChartTooltipLabel (type, seriesData, options) {
         value = getFormattedValue(value, dc.format)
         return `${getFieldAlias(dc.field, {}) || dc.name}: ${value}` // @FIXME dynamic field alias by queryVariable in dashboard
       })
-      .concat(metricColumns.map((mc) => {
+    )
+
+    tooltipLabels = tooltipLabels.concat(
+      metricColumns.map((mc) => {
         const decodedName = decodeMetricName(mc.name)
         let value = record
           ? Array.isArray(record)
@@ -622,8 +624,19 @@ export function getChartTooltipLabel (type, seriesData, options) {
           : 0
         value = getFormattedValue(value, mc.format)
         return `${getFieldAlias(mc.field, {}) || decodedName}: ${value}`
-      }))
-      .join('<br/>')
+      })
+    )
+
+    if (color) {
+      const circle = `<span class="widget-tooltip-circle" style="background: ${color}"></span>`
+      if (!dimentionColumns.length) {
+        tooltipLabels.unshift(circle)
+      } else {
+        tooltipLabels[0] = circle + tooltipLabels[0]
+      }
+    }
+
+    return tooltipLabels.join('<br/>')
   }
 }
 
