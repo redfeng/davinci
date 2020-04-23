@@ -102,7 +102,19 @@ public class DownloadServiceImpl extends DownloadCommonService implements Downlo
             record.setCreateTime(new Date());
             record.setStatus(DownloadTaskStatus.PROCESSING.getStatus());
             downloadRecordMapper.insert(record);
-            ExecutorUtil.submitWorkbookTask(WorkBookContext.newWorkBookContext(new MsgWrapper(record, ActionEnum.DOWNLOAD, record.getId()), widgetList, user, resultLimit));
+            MsgWrapper wrapper = new MsgWrapper(record, ActionEnum.DOWNLOAD, record.getId());
+
+            WorkBookContext workBookContext = WorkBookContext.WorkBookContextBuilder.newBuildder()
+                    .withWrapper(wrapper)
+                    .withWidgets(widgetList)
+                    .withUser(user)
+                    .withResultLimit(resultLimit)
+                    .withTaskKey("DownloadTask_" + id)
+                    .build();
+
+            ExecutorUtil.submitWorkbookTask(workBookContext, null);
+
+            log.info("Download task submit: {}", wrapper);
         } catch (Exception e) {
             log.error("submit download task error,e=", e);
             return false;

@@ -19,21 +19,6 @@
  */
 
 import {
-  LOAD_DASHBOARDS,
-  LOAD_DASHBOARDS_SUCCESS,
-  LOAD_DASHBOARDS_FAILURE,
-  ADD_DASHBOARD,
-  ADD_DASHBOARD_SUCCESS,
-  ADD_DASHBOARD_FAILURE,
-  EDIT_DASHBOARD,
-  EDIT_DASHBOARD_SUCCESS,
-  EDIT_DASHBOARD_FAILURE,
-  EDIT_CURRENT_DASHBOARD,
-  EDIT_CURRENT_DASHBOARD_SUCCESS,
-  EDIT_CURRENT_DASHBOARD_FAILURE,
-  DELETE_DASHBOARD,
-  DELETE_DASHBOARD_SUCCESS,
-  DELETE_DASHBOARD_FAILURE,
   LOAD_DASHBOARD_DETAIL,
   LOAD_DASHBOARD_DETAIL_SUCCESS,
   LOAD_DASHBOARD_DETAIL_FAILURE,
@@ -52,11 +37,11 @@ import {
   CLEAR_CURRENT_DASHBOARD,
   LOAD_DASHBOARD_SHARE_LINK,
   LOAD_DASHBOARD_SHARE_LINK_SUCCESS,
-  LOAD_DASHBOARD_SECRET_LINK_SUCCESS,
+  LOAD_DASHBOARD_AUTHORIZED_SHARE_LINK_SUCCESS,
   LOAD_DASHBOARD_SHARE_LINK_FAILURE,
   LOAD_WIDGET_SHARE_LINK,
   LOAD_WIDGET_SHARE_LINK_SUCCESS,
-  LOAD_WIDGET_SECRET_LINK_SUCCESS,
+  LOAD_WIDGET_AUTHORIZED_SHARE_LINK_SUCCESS,
   LOAD_WIDGET_SHARE_LINK_FAILURE,
   LOAD_WIDGET_CSV,
   LOAD_WIDGET_CSV_SUCCESS,
@@ -72,10 +57,12 @@ import {
   SELECT_DASHBOARD_ITEM_CHART,
   SET_SELECT_OPTIONS,
   SET_CONTROL_FORM_VALUES,
-  GLOBAL_CONTROL_CHANGE,
   MONITORED_SYNC_DATA_ACTION,
   MONITORED_SEARCH_DATA_ACTION,
-  MONITORED_LINKAGE_DATA_ACTION
+  MONITORED_LINKAGE_DATA_ACTION,
+  SEND_CURRENT_DASHBOARD_CONTROL_PARAMS,
+  OPEN_SHARE_PANEL,
+  CLOSE_SHARE_PANEL
 } from './constants'
 
 export function addDashboardItems (portalId, items, resolve) {
@@ -102,133 +89,6 @@ export function deleteDashboardItem (id, resolve) {
 export function clearCurrentDashboard () {
   return {
     type: CLEAR_CURRENT_DASHBOARD
-  }
-}
-
-export function loadDashboards (portalId, resolve) {
-  return {
-    type: LOAD_DASHBOARDS,
-    payload: {
-      portalId,
-      resolve
-    }
-  }
-}
-
-export function dashboardsLoaded (dashboards) {
-  return {
-    type: LOAD_DASHBOARDS_SUCCESS,
-    payload: {
-      dashboards
-    }
-  }
-}
-
-export function loadDashboardsFail () {
-  return {
-    type: LOAD_DASHBOARDS_FAILURE
-  }
-}
-
-export function addDashboard (dashboard, resolve) {
-  return {
-    type: ADD_DASHBOARD,
-    payload: {
-      dashboard,
-      resolve
-    }
-  }
-}
-
-export function dashboardAdded (result) {
-  return {
-    type: ADD_DASHBOARD_SUCCESS,
-    payload: {
-      result
-    }
-  }
-}
-
-export function addDashboardFail () {
-  return {
-    type: ADD_DASHBOARD_FAILURE
-  }
-}
-
-export function editDashboard (formType, dashboard, resolve) {
-  return {
-    type: EDIT_DASHBOARD,
-    payload: {
-      formType,
-      dashboard,
-      resolve
-    }
-  }
-}
-
-export function dashboardEdited (result, formType) {
-  return {
-    type: EDIT_DASHBOARD_SUCCESS,
-    payload: {
-      result,
-      formType
-    }
-  }
-}
-
-export function editDashboardFail () {
-  return {
-    type: EDIT_DASHBOARD_FAILURE
-  }
-}
-
-export function editCurrentDashboard (dashboard, resolve) {
-  return {
-    type: EDIT_CURRENT_DASHBOARD,
-    payload: {
-      dashboard,
-      resolve
-    }
-  }
-}
-
-export function currentDashboardEdited (result) {
-  return {
-    type: EDIT_CURRENT_DASHBOARD_SUCCESS,
-    payload: {
-      result
-    }
-  }
-}
-
-export function editCurrentDashboardFail () {
-  return {
-    type: EDIT_CURRENT_DASHBOARD_FAILURE
-  }
-}
-
-export function deleteDashboard (id, resolve) {
-  return {
-    type: DELETE_DASHBOARD,
-    payload: {
-      resolve,
-      id
-    }
-  }
-}
-
-export function dashboardDeleted (id) {
-  return {
-    type: DELETE_DASHBOARD_SUCCESS,
-    payload: {
-      id
-    }
-  }
-}
-
-export function deleteDashboardFail () {
-  return {
-    type: DELETE_DASHBOARD_FAILURE
   }
 }
 
@@ -342,30 +202,30 @@ export function deleteDashboardItemFail () {
   }
 }
 
-export function loadDashboardShareLink (id, authName) {
+export function loadDashboardShareLink (id, authUser?) {
   return {
     type: LOAD_DASHBOARD_SHARE_LINK,
     payload: {
       id,
-      authName
+      authUser
     }
   }
 }
 
-export function dashboardShareLinkLoaded (shareInfo) {
+export function dashboardShareLinkLoaded (shareToken) {
   return {
     type: LOAD_DASHBOARD_SHARE_LINK_SUCCESS,
     payload: {
-      shareInfo
+      shareToken
     }
   }
 }
 
-export function dashboardSecretLinkLoaded (secretInfo) {
+export function dashboardAuthorizedShareLinkLoaded (authorizedShareToken) {
   return {
-    type: LOAD_DASHBOARD_SECRET_LINK_SUCCESS,
+    type: LOAD_DASHBOARD_AUTHORIZED_SHARE_LINK_SUCCESS,
     payload: {
-      secretInfo
+      authorizedShareToken
     }
   }
 }
@@ -376,33 +236,32 @@ export function loadDashboardShareLinkFail () {
   }
 }
 
-export function loadWidgetShareLink (id, itemId, authName, resolve) {
+export function loadWidgetShareLink (id, itemId, authUser?) {
   return {
     type: LOAD_WIDGET_SHARE_LINK,
     payload: {
       id,
       itemId,
-      authName,
-      resolve
+      authUser
     }
   }
 }
 
-export function widgetShareLinkLoaded (shareInfo, itemId) {
+export function widgetShareLinkLoaded (shareToken, itemId) {
   return {
     type: LOAD_WIDGET_SHARE_LINK_SUCCESS,
     payload: {
-      shareInfo,
+      shareToken,
       itemId
     }
   }
 }
 
-export function widgetSecretLinkLoaded (shareInfo, itemId) {
+export function widgetAuthorizedShareLinkLoaded (shareToken, itemId) {
   return {
-    type: LOAD_WIDGET_SECRET_LINK_SUCCESS,
+    type: LOAD_WIDGET_AUTHORIZED_SHARE_LINK_SUCCESS,
     payload: {
-      shareInfo,
+      shareToken,
       itemId
     }
   }
@@ -414,6 +273,24 @@ export function loadWidgetShareLinkFail (itemId) {
     payload: {
       itemId
     }
+  }
+}
+
+export function openSharePanel (id, type, title, itemId?) {
+  return {
+    type: OPEN_SHARE_PANEL,
+    payload: {
+      id,
+      type,
+      title,
+      itemId
+    }
+  }
+}
+
+export function closeSharePanel () {
+  return {
+    type: CLOSE_SHARE_PANEL
   }
 }
 
@@ -531,15 +408,6 @@ export function setControlFormValues (formValues) {
   }
 }
 
-export function globalControlChange (controlRequestParamsByItem) {
-  return {
-    type: GLOBAL_CONTROL_CHANGE,
-    payload: {
-      controlRequestParamsByItem
-    }
-  }
-}
-
 export function monitoredSyncDataAction () {
   return {
     type: MONITORED_SYNC_DATA_ACTION
@@ -555,5 +423,14 @@ export function monitoredSearchDataAction () {
 export function monitoredLinkageDataAction () {
   return {
     type: MONITORED_LINKAGE_DATA_ACTION
+  }
+}
+
+export function sendCurrentDashboardControlParams (params) {
+  return {
+    type: SEND_CURRENT_DASHBOARD_CONTROL_PARAMS,
+    payload: {
+      params
+    }
   }
 }

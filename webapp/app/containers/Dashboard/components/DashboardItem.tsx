@@ -35,15 +35,18 @@ import { ChartTypes } from 'containers/Widget/config/chart/ChartTypes'
 import { DrillableChart } from 'containers/Widget/config/chart/DrillableChart'
 import { IconProps } from 'antd/lib/icon'
 import { Icon, Tooltip, Popconfirm, Popover, Dropdown, Menu } from 'antd'
+import { getPagination, getNativeQuery} from 'containers/Viz/utils'
 
 import ModulePermission from 'containers/Account/components/checkModulePermission'
 import ShareDownloadPermission from 'containers/Account/components/checkShareDownloadPermission'
-import { IProject } from 'containers/Projects'
-import { IQueryConditions, IQueryVariableMap } from '../Grid'
+import { IProject } from 'containers/Projects/types'
+import { IQueryConditions, IQueryVariableMap, SharePanelType } from '../types'
 import { IMapControlOptions, OnGetControlOptions, IDistinctValueReqeustParams, IFilters } from 'app/components/Filters/types'
+import { ICurrentDataInFullScreenProps } from './fullScreenPanel/FullScreenPanel'
 const styles = require('../Dashboard.less')
 const utilStyles = require('assets/less/util.less')
 
+export type IGetChartData = (renderType: RenderType, itemId: number, widgetId: number, queryConditions?: any) => void
 
 interface IDashboardItemProps {
   itemId: number
@@ -53,12 +56,11 @@ interface IDashboardItemProps {
   isTrigger?: boolean
   datasource: any
   loading: boolean
-  polling: string
+  polling: boolean
   interacting: boolean
-  frequency: string
-  shareInfo: string
-  secretInfo?: string
-  shareInfoLoading?: boolean
+  frequency: number
+  shareToken: string
+  shareLoading?: boolean
   downloadCsvLoading: boolean
   drillHistory?: any
   drillpathSetting?: any
@@ -72,12 +74,12 @@ interface IDashboardItemProps {
   container?: string
   errorMessage: string
   onSelectDrillHistory?: (history?: any, item?: number, itemId?: number, widgetId?: number) => void
-  onGetChartData: (renderType: RenderType, itemId: number, widgetId: number, queryConditions?: any) => void
+  onGetChartData: IGetChartData
   onShowEdit?: (itemId: number) => (e: React.MouseEvent<HTMLSpanElement>) => void
   onShowDrillEdit?: (itemId: number) => (e: React.MouseEvent<HTMLSpanElement>) => void
   onDeleteDashboardItem?: (itemId: number) => () => void
-  onLoadWidgetShareLink?: (id: number, itemId: number, authName: string) => void
-  onDownloadCsv: (itemId: number, widgetId: number, shareInfo?: string) => void
+  onOpenSharePanel?: (id: number, type: SharePanelType, title: string, itemId?: number) => void
+  onDownloadCsv: (itemId: number, widgetId: number, shareToken?: string) => void
   onTurnOffInteract: (itemId: number) => void
   onShowFullScreen: (chartData: any) => void
   onCheckTableInteract: (itemId: number) => boolean
@@ -93,7 +95,6 @@ interface IDashboardItemProps {
 
 interface IDashboardItemStates {
   controlPanelVisible: boolean
-  sharePanelAuthorized: boolean
   widgetProps: IWidgetConfig
   pagination: IPaginationParams
   queryVariables: IQueryVariableMap
@@ -103,6 +104,7 @@ interface IDashboardItemStates {
   dataDrillPanelPosition: boolean | object
   whichDataDrillBrushed: boolean | object []
   sourceDataOfBrushed: boolean | object []
+  sourceDataGroup: boolean | Array<string>
   // isShowDrillPanel: boolean
   cacheWidgetProps: IWidgetConfig
   cacheWidgetId: boolean | number
@@ -113,7 +115,6 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
     super(props)
     this.state = {
       controlPanelVisible: false,
-      sharePanelAuthorized: false,
       widgetProps: null,
       pagination: null,
       queryVariables: {},
@@ -124,7 +125,8 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
       whichDataDrillBrushed: false,
       sourceDataOfBrushed: false,
       cacheWidgetProps: null,
-      cacheWidgetId: false
+      cacheWidgetId: false,
+      sourceDataGroup: false
       //   isShowDrillPanel: true
     }
   }
@@ -142,8 +144,8 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
     const { cacheWidgetProps, cacheWidgetId } = this.state
     const widgetProps = JSON.parse(widget.config)
     const { autoLoadData } = widgetProps
-    const pagination = this.getPagination(widgetProps, datasource)
-    const nativeQuery = this.getNativeQuery(widgetProps)
+    const pagination = getPagination(widgetProps, datasource)
+    const nativeQuery = getNativeQuery(widgetProps)
     if (container === 'share') {
       if (autoLoadData === true || autoLoadData === undefined) {
         onGetChartData('clear', itemId, widget.id, { pagination, nativeQuery })
@@ -165,7 +167,7 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
   }
 
   public componentWillReceiveProps (nextProps: IDashboardItemProps) {
-    const { widget, queryConditions, renderType } = this.props
+    const { widget, queryConditions } = this.props
     let { widgetProps, pagination, model } = this.state
 
     if (nextProps.widget !== widget) {
@@ -188,7 +190,7 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
       })
     }
 
-    pagination = this.getPagination(widgetProps, nextProps.datasource)
+    pagination = getPagination(widgetProps, nextProps.datasource)
     this.setState({
       pagination
     })
@@ -225,36 +227,6 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
     clearInterval(this.pollingTimer)
   }
 
-  // @FIXME need refactor
-  private getPagination = (widgetProps: IWidgetConfig, datasource) => {
-    const { chartStyles } = widgetProps
-    const { table } = chartStyles
-    if (!table) { return null }
-
-    const { withPaging, pageSize } = table
-    const pagination: IPaginationParams = {
-      withPaging,
-      pageSize: 0,
-      pageNo: 0,
-      totalCount: datasource.totalCount || 0
-    }
-    if (pagination.withPaging) {
-      pagination.pageSize = datasource.pageSize || +pageSize
-      pagination.pageNo = datasource.pageNo || 1
-    }
-    return pagination
-  }
-
-  private getNativeQuery = (widgetProps: IWidgetConfig) => {
-    let noAggregators = false
-    const { chartStyles } = widgetProps
-    const { table } = chartStyles
-    if (table) {
-      noAggregators = table.withNoAggregators
-    }
-    return noAggregators
-  }
-
   private initPolling = (props: IDashboardItemProps) => {
     const {
       polling,
@@ -282,13 +254,13 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
       monitoredSyncDataAction
     } = this.props
     const { pagination, nativeQuery } = this.state
-    onGetChartData('refresh', itemId, widget.id, { pagination, nativeQuery })
+    onGetChartData('flush', itemId, widget.id, { pagination, nativeQuery })
     if (monitoredSyncDataAction) {
       monitoredSyncDataAction()
     }
   }
 
-  private onControlSearch = (queryConditions: Partial<IQueryConditions>) => {
+  private onControlSearch = (queryConditions: IQueryConditions) => {
     const {
       itemId,
       widget,
@@ -314,8 +286,7 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
       itemId,
       widget,
       loading,
-      renderType,
-      onGetChartData
+      renderType
     } = this.props
 
     if (onShowFullScreen) {
@@ -324,21 +295,20 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
         widget,
         model: this.state.model,
         loading,
-        renderType,
-        onGetChartData
+        renderType
       })
     }
   }
 
   private downloadCsv = () => {
-    const { widget, itemId, shareInfo, onDownloadCsv } = this.props
-    onDownloadCsv(itemId, widget.id, shareInfo)
+    const { widget, itemId, shareToken, onDownloadCsv } = this.props
+    onDownloadCsv(itemId, widget.id, shareToken)
   }
 
-  private changeSharePanelAuthorizeState = (state) => () => {
-    this.setState({
-      sharePanelAuthorized: state
-    })
+  private openSharePanel = () => {
+    const { itemId, widget, onOpenSharePanel } = this.props
+    const { id, name } = widget
+    onOpenSharePanel(id, 'widget', name, itemId)
   }
 
   private checkTableInteract = () => {
@@ -352,7 +322,7 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
   }
 
   private paginationChange = (pageNo: number, pageSize: number, orders) => {
-    const { onGetChartData, itemId, widget } = this.props
+    const { onGetChartData, itemId, widget, drillHistory } = this.props
     let { pagination } = this.state
     const { nativeQuery } = this.state
     pagination = {
@@ -360,7 +330,12 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
       pageNo,
       pageSize
     }
-    onGetChartData('clear', itemId, widget.id, { pagination, nativeQuery, orders })
+    if (drillHistory && drillHistory.length) {
+      const drillStatus = drillHistory[drillHistory.length - 1]
+      onGetChartData('clear', itemId, widget.id, { pagination, nativeQuery, orders, drillStatus })
+    } else {
+      onGetChartData('clear', itemId, widget.id, { pagination, nativeQuery, orders })
+    }
   }
 
   private turnOffInteract = () => {
@@ -389,14 +364,16 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
     if (position && position.length) {
       try {
         const ps = JSON.parse(position)
-        const {range, brushed, sourceData} = ps
+        const {range, brushed, sourceData, sourceGroup} = ps
         const dataDrillPanelPosition = void 0
         const sourceDataOfBrushed = sourceData && sourceData.length ? sourceData : void 0
         const whichDataDrillBrushed = brushed && brushed.length ? brushed : void 0
+        const sourceDataGroup = sourceGroup && sourceGroup.length ? sourceGroup : void 0
         this.setState({
           dataDrillPanelPosition,
           whichDataDrillBrushed,
-          sourceDataOfBrushed
+          sourceDataOfBrushed,
+          sourceDataGroup
         })
       } catch (error) {
         throw error
@@ -542,12 +519,13 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
   }
   private drillData = (name, dimensions) => {
     const { onDrillData, widget, itemId } = this.props
-    const { widgetProps, cacheWidgetProps } = this.state
+    const { widgetProps, cacheWidgetProps, sourceDataGroup } = this.state
     let mode = void 0
     if (widget && widget.config) {
       const cf = JSON.parse(widget.config)
       mode = cf.mode
     }
+  
     if (onDrillData) {
       onDrillData({
         row: dimensions === 'row' ? name : [],
@@ -557,7 +535,8 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
         widgetId: widget.id,
         groups: name,
         filters: this.state.whichDataDrillBrushed,
-        sourceDataFilter: this.state.sourceDataOfBrushed
+        sourceDataFilter: this.state.sourceDataOfBrushed || [],
+        sourceDataGroup
       })
     }
     this.setState({whichDataDrillBrushed: false})
@@ -633,9 +612,10 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
         }
       } else if (widgetProps.selectedChart === ChartTypes.Table) {
         const cols = widgetProps.cols
-        const { whichDataDrillBrushed } = this.state
+        const { whichDataDrillBrushed, sourceDataOfBrushed } = this.state
+        const sourceDataGroup = Array.isArray(this.state.sourceDataGroup) ? [...(this.state.sourceDataGroup as Array<string>)] : []
         const drillData = whichDataDrillBrushed[0][0]
-        const drillKey = drillData[drillData.length - 1]['key']
+        const drillKey = drillData&&drillData.length ? drillData[drillData.length - 1]['key'] : sourceDataGroup && sourceDataGroup.length ? sourceDataGroup.pop() : ''
         const newWidgetPropCols = cols.reduce((array, col) => {
           array.push(col)
           if (col.name === drillKey) {
@@ -643,12 +623,12 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
           }
           return array
         }, [])
+       
         this.setState({
           widgetProps: {
             ...widgetProps,
             ...{
               cols: name && name.length
-            //  ? widgetProps.cols.concat({name})
               ? newWidgetPropCols
               : cacheWidgetProps.cols
             }
@@ -692,11 +672,10 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
       datasource,
       loading,
       interacting,
-      shareInfo,
-      secretInfo,
+      shareToken,
       drillHistory,
       drillpathSetting,
-      shareInfoLoading,
+      shareLoading,
       downloadCsvLoading,
       renderType,
       controlSelectOptions,
@@ -705,16 +684,13 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
       onShowDrillEdit,
       onSelectDrillHistory,
       onDeleteDashboardItem,
-      onLoadWidgetShareLink,
       container,
       errorMessage
     } = this.props
-
     const data = datasource.resultList
 
     const {
       controlPanelVisible,
-      sharePanelAuthorized,
       widgetProps,
       queryVariables,
       pagination,
@@ -735,8 +711,8 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
             id={widget.id}
             type="widget"
             itemId={itemId}
-            shareInfo={shareInfo}
-            shareInfoLoading={shareInfoLoading}
+            shareToken={shareToken}
+            shareLoading={shareLoading}
             downloadCsvLoading={downloadCsvLoading}
             onDownloadCsv={this.downloadCsv}
           />
@@ -746,25 +722,7 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
       const ShareButton = ShareDownloadPermission<IconProps>(currentProject, 'share')(Icon)
       shareButton = (
         <Tooltip title="分享">
-          <Popover
-            placement="bottomRight"
-            trigger="click"
-            content={
-              <SharePanel
-                id={widget.id}
-                type="widget"
-                itemId={itemId}
-                shareInfo={shareInfo}
-                secretInfo={secretInfo}
-                shareInfoLoading={shareInfoLoading}
-                authorized={sharePanelAuthorized}
-                onLoadWidgetShareLink={onLoadWidgetShareLink}
-                afterAuthorization={this.changeSharePanelAuthorizeState(true)}
-              />
-            }
-          >
-            <ShareButton type="share-alt" onClick={this.changeSharePanelAuthorizeState(false)} />
-          </Popover>
+          <ShareButton type="share-alt" onClick={this.openSharePanel} />
         </Tooltip>
       )
 
@@ -786,7 +744,7 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
             id={widget.id}
             type="widget"
             itemId={itemId}
-            shareInfo={shareInfo}
+            shareToken={shareToken}
             downloadCsvLoading={downloadCsvLoading}
             onDownloadCsv={this.downloadCsv}
           />
@@ -825,26 +783,25 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
     const controlToggle = !!controls.length && (
       <Tooltip title="选择参数">
         <Icon
-          className={styles.toggle}
           type={controlPanelVisible ? 'up-square-o' : 'down-square-o'}
           onClick={this.toggleControlPanel}
         />
       </Tooltip>
     )
 
-    const loadingIcon = loading && <Icon className={styles.toggle} type="loading" />
+    const loadingIcon = loading && <Icon type="loading" />
 
-    const descToggle = widget.description && (
+    const descIcon = widget.description && (
       <Popover
         placement="bottomLeft"
         content={widget.description}
         overlayClassName={styles.widgetInfoContent}
       >
-        <Icon className={styles.toggle} type="info-circle" />
+        <Icon type="info-circle" />
       </Popover>
     )
 
-    const errorToggle = errorMessage && (
+    const errorIcon = errorMessage && (
       <Tooltip
         title={(
           <>
@@ -856,7 +813,7 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
         overlayClassName={styles.widgetInfoContent}
       >
         <Icon
-          className={`${styles.toggle} ${styles.error}`}
+          className={styles.error}
           type="warning"
         />
       </Tooltip>
@@ -896,20 +853,10 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
         }
       })
     }
-    const categoriesCol = []
-    Object.entries(model).forEach(([key, m]) => {
-      if (m.modelType === 'category') {
-        categoriesCol.push({
-          name: key,
-          type: 'category',
-          visualType: m.visualType
-        })
-      }
-    })
 
     const dataDrillPanelClass = classnames({
       [styles.dataDrillPanel]: true,
-      [utilStyles.hide]: !isSelectedData
+     // [utilStyles.hide]: !isSelectedData
     })
     let positionStyle = {}
     if (this.state.dataDrillPanelPosition) {
@@ -926,7 +873,6 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
       <div className={dataDrillPanelClass}>
         <DataDrill
           widgetConfig={cf}
-          categoriesCol={categoriesCol}
           onDataDrillPath={this.drillpathData}
           onDataDrill={this.drillData}
           drillHistory={drillHistory}
@@ -970,9 +916,9 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
           <div className={styles.title}>
             {controlToggle}
             <h4>{widget.name}</h4>
+            {descIcon}
+            {errorIcon}
             {loadingIcon}
-            {descToggle}
-            {errorToggle}
             {}
           </div>
           <div className={styles.tools}>
@@ -981,7 +927,7 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
             </Tooltip>
             {widgetButton}
             <Tooltip title="全屏">
-              <Icon type="arrows-alt" onClick={this.onFullScreen} className={styles.fullScreen} />
+              <Icon type="fullscreen" onClick={this.onFullScreen} className={styles.fullScreen} />
             </Tooltip>
             {shareButton}
             {downloadButton}

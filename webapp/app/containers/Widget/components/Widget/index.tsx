@@ -22,14 +22,16 @@ import { IVisualMapConfig } from '../Workbench/ConfigSections/VisualMapSection'
 import { IToolboxConfig } from '../Workbench/ConfigSections/ToolboxSection'
 import { IAreaSelectConfig } from '../Workbench/ConfigSections/AreaSelectSection'
 import { IScorecardConfig } from '../Workbench/ConfigSections/ScorecardSection'
+import { IGaugeConfig } from '../Workbench/ConfigSections/GaugeSection'
 import { IframeConfig } from '../Workbench/ConfigSections/IframeSection'
 import { ITableConfig } from '../Config/Table'
 import { IRichTextConfig, IBarConfig, IRadarConfig } from '../Workbench/ConfigSections'
 import { IDoubleYAxisConfig } from '../Workbench/ConfigSections/DoubleYAxisSection'
-import { IModel } from '../Workbench/index'
-import { IQueryVariableMap } from 'containers/Dashboard/Grid'
+import { IViewModel } from 'containers/View/types'
+import { IQueryVariableMap } from 'containers/Dashboard/types'
 import { getStyleConfig } from '../util'
 import ChartTypes from '../../config/chart/ChartTypes'
+import { RichTextNode } from 'app/components/RichText'
 const styles = require('../Pivot/Pivot.less')
 
 export type DimetionType = 'row' | 'col'
@@ -40,7 +42,9 @@ export type RenderType =
   | 'resize'
   | 'loading'
   | 'select'
+  | 'flush'
 export type WidgetMode = 'pivot' | 'chart'
+export type Coordinate = 'cartesian' | 'polar' | 'other'
 
 export interface IWidgetDimension {
   name: string
@@ -55,6 +59,7 @@ export interface IWidgetMetric {
   chart: IChartInfo
   field: IFieldConfig
   format: IFieldFormatConfig
+  sort?: IFieldSortConfig
 }
 
 export interface IWidgetSecondaryMetric {
@@ -62,6 +67,7 @@ export interface IWidgetSecondaryMetric {
   agg: AggregatorType
   field: IFieldConfig
   format: IFieldFormatConfig
+  sort?: IFieldSortConfig
   from?: string
   type?: any
   visualType?: any
@@ -86,6 +92,7 @@ export interface IChartStyles {
   spec?: ISpecConfig
   visualMap?: IVisualMapConfig
   scorecard?: IScorecardConfig
+  gauge?: IGaugeConfig
   iframe?: IframeConfig
   table?: ITableConfig
   richText?: IRichTextConfig
@@ -104,7 +111,7 @@ export interface IChartInfo {
   name: string
   title: string
   icon: string
-  coordinate: 'cartesian' | 'polar' | 'other'
+  coordinate: Coordinate
   rules: IChartRule[]
   dimetionAxis?: DimetionType
   data: object
@@ -138,7 +145,7 @@ export interface IWidgetProps {
   renderType?: RenderType
   orders: Array<{ column: string, direction: string }>
   mode: WidgetMode
-  model: IModel
+  model: IViewModel
   pagination?: IPaginationParams
   editing?: boolean
   queryVariables?: IQueryVariableMap
@@ -146,7 +153,7 @@ export interface IWidgetProps {
   onDoInteract?: (triggerData: object) => void
   getDataDrillDetail?: (position: string) => void
   onPaginationChange?: (pageNo: number, pageSize: number, order?: { column: string, direction: string }) => void
-  onChartStylesChange?: (propPath: string[], value: string) => void
+  onChartStylesChange?: (propPath: string[], value: string | RichTextNode[]) => void
   isDrilling?: boolean
   whichDataDrillBrushed?: boolean | object[]
   computed?: any[]

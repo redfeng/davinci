@@ -19,50 +19,52 @@
  */
 
 import { createSelector } from 'reselect'
+import { IDashboardState } from './types'
 
-const selectDashboard = (state) => state.get('dashboard')
-const selectForm = (state) => state.get('form')
-
-const makeSelectDashboards = () => createSelector(
-  selectDashboard,
-  (dashboardState) => dashboardState.get('dashboards')
-)
+const selectDashboard = (state: { dashboard: IDashboardState }) => state.dashboard
+const selectForm = (state) => state.form
 
 const makeSelectCurrentDashboard = () => createSelector(
   selectDashboard,
-  (dashboardState) => dashboardState.get('currentDashboard')
+  (dashboardState) => dashboardState.currentDashboard
 )
+
+const makeSelectCurrentDashboardControlParams = () => createSelector(
+  selectDashboard,
+  (dashboardState) => dashboardState.currentDashboardGlobalControlParams
+)
+
 const makeSelectCurrentDashboardLoading = () => createSelector(
   selectDashboard,
-  (dashboardState) => dashboardState.get('currentDashboardLoading')
+  (dashboardState) => dashboardState.currentDashboardLoading
 )
-const makeSelectCurrentDashboardShareInfo = () => createSelector(
+const makeSelectCurrentDashboardShareToken = () => createSelector(
   selectDashboard,
-  (dashboardState) => dashboardState.get('currentDashboardShareInfo')
+  (dashboardState) => dashboardState.currentDashboardShareToken
 )
-const makeSelectCurrentDashboardSecretInfo = () => createSelector(
+const makeSelectCurrentDashboardAuthorizedShareToken = () => createSelector(
   selectDashboard,
-  (dashboardState) => dashboardState.get('currentDashboardSecretInfo')
+  (dashboardState) => dashboardState.currentDashboardAuthorizedShareToken
 )
-const makeSelectCurrentDashboardShareInfoLoading = () => createSelector(
+const makeSelectCurrentDashboardShareLoading = () => createSelector(
   selectDashboard,
-  (dashboardState) => dashboardState.get('currentDashboardShareInfoLoading')
+  (dashboardState) => dashboardState.currentDashboardShareLoading
+)
+const makeSelectSharePanel = () => createSelector(
+  selectDashboard,
+  (dashboardState) => dashboardState.sharePanel
 )
 const makeSelectCurrentDashboardSelectOptions = () => createSelector(
   selectDashboard,
-  (dashboardState) => dashboardState.get('currentDashboardSelectOptions')
+  (dashboardState) => dashboardState.currentDashboardSelectOptions
 )
 const makeSelectCurrentItems = () => createSelector(
   selectDashboard,
-  (dashboardState) => dashboardState.get('currentItems')
+  (dashboardState) => dashboardState.currentItems
 )
 const makeSelectCurrentItemsInfo = () => createSelector(
   selectDashboard,
-  (dashboardState) => dashboardState.get('currentItemsInfo')
-)
-const makeSelectModalLoading = () => createSelector(
-  selectDashboard,
-  (dashboardState) => dashboardState.get('modalLoading')
+  (dashboardState) => dashboardState.currentItemsInfo
 )
 
 const makeSelectControlForm = () => createSelector(
@@ -73,8 +75,8 @@ const makeSelectControlForm = () => createSelector(
 const makeSelectCurrentLinkages = () => createSelector(
   selectDashboard,
   (dashboardState) => {
-    const currentDashboard = dashboardState.get('currentDashboard')
-    const currentItemsInfo = dashboardState.get('currentItemsInfo')
+    const currentDashboard = dashboardState.currentDashboard
+    const currentItemsInfo = dashboardState.currentItemsInfo
     if (!currentDashboard && !currentItemsInfo) { return [] }
 
     const emptyConfig = '{}'
@@ -91,16 +93,16 @@ const makeSelectCurrentLinkages = () => createSelector(
 export {
   selectDashboard,
   selectForm,
-  makeSelectDashboards,
   makeSelectCurrentDashboard,
   makeSelectCurrentDashboardLoading,
   makeSelectCurrentItems,
   makeSelectCurrentItemsInfo,
-  makeSelectCurrentDashboardShareInfo,
-  makeSelectCurrentDashboardSecretInfo,
-  makeSelectCurrentDashboardShareInfoLoading,
+  makeSelectCurrentDashboardShareToken,
+  makeSelectCurrentDashboardAuthorizedShareToken,
+  makeSelectCurrentDashboardShareLoading,
+  makeSelectSharePanel,
   makeSelectCurrentDashboardSelectOptions,
-  makeSelectModalLoading,
   makeSelectCurrentLinkages,
-  makeSelectControlForm
+  makeSelectControlForm,
+  makeSelectCurrentDashboardControlParams
 }

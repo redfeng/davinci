@@ -19,6 +19,9 @@
 
 package edp.davinci.service.impl;
 
+import edp.core.exception.ForbiddenExecption;
+import edp.core.exception.ServerException;
+import edp.core.exception.UnAuthorizedExecption;
 import edp.davinci.core.enums.ActionEnum;
 import edp.davinci.core.enums.DownloadTaskStatus;
 import edp.davinci.core.enums.DownloadType;
@@ -55,7 +58,7 @@ public class ShareDownloadServiceImpl extends DownloadCommonService implements S
         ShareInfo shareInfo = shareService.getShareInfo(token, user);
 
         try {
-            List<WidgetContext> widgetList = getWidgetContexts(downloadType, shareInfo.getShareId(), user == null ? shareInfo.getShareUser() : user, params);
+            List<WidgetContext> widgetList = getWidgetContexts(downloadType, shareInfo.getShareId(), shareInfo.getShareUser(), params);
 
             ShareDownloadRecord record = new ShareDownloadRecord();
             record.setUuid(uuid);
@@ -64,8 +67,19 @@ public class ShareDownloadServiceImpl extends DownloadCommonService implements S
             record.setCreateTime(new Date());
             shareDownloadRecordMapper.insertSelective(record);
 
-            ExecutorUtil.submitWorkbookTask(WorkBookContext.newWorkBookContext(new MsgWrapper(record, ActionEnum.SHAREDOWNLOAD, uuid), widgetList, shareInfo.getShareUser(), resultLimit));
+            MsgWrapper wrapper = new MsgWrapper(record, ActionEnum.SHAREDOWNLOAD, uuid);
+            WorkBookContext workBookContext = WorkBookContext.WorkBookContextBuilder.newBuildder()
+                    .withWrapper(wrapper)
+                    .withWidgets(widgetList)
+                    .withUser(shareInfo.getShareUser())
+                    .withResultLimit(resultLimit)
+                    .withTaskKey("ShareDownload_" + uuid)
+                    .build();
+            ExecutorUtil.submitWorkbookTask(workBookContext, null);
+            log.info("Share download task submit: {}", wrapper);
             return true;
+        } catch (UnAuthorizedExecption | ServerException e) {
+            throw e;
         } catch (Exception e) {
             log.error("submit download task error,e=", e);
             return false;
@@ -82,16 +96,23 @@ public class ShareDownloadServiceImpl extends DownloadCommonService implements S
 
     @Override
     public ShareDownloadRecord downloadById(String id, String uuid, String token, User user) {
-        shareService.getShareInfo(token, user);
+        //share download 只校验token是否正确，不校验权限，走分享人权限
+        try {
+            shareService.getShareInfo(token, user);
+        } catch (ServerException e) {
+            throw e;
+        } catch (ForbiddenExecption e) {
+            log.warn("auth share download: record: [id: {}, uuid: {}] type", id, uuid);
+        }
 
         ShareDownloadRecord record = shareDownloadRecordMapper.getShareDownloadRecordBy(Long.valueOf(id), uuid);
 
-        if(record != null){
+        if (record != null) {
             record.setLastDownloadTime(new Date());
             record.setStatus(DownloadTaskStatus.DOWNLOADED.getStatus());
             shareDownloadRecordMapper.updateById(record);
             return record;
-        }else{
+        } else {
             return null;
         }
     }

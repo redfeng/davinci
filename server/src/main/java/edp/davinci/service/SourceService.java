@@ -35,7 +35,6 @@ import java.util.List;
 
 public interface SourceService extends CheckEntityService {
 
-
     List<Source> getSources(Long projectId, User user) throws NotFoundException, UnAuthorizedExecption, ServerException;
 
     Source createSource(SourceCreate sourceCreate, User user) throws NotFoundException, UnAuthorizedExecption, ServerException;
@@ -59,4 +58,6 @@ public interface SourceService extends CheckEntityService {
     SourceDetail getSourceDetail(Long id, User user) throws NotFoundException, UnAuthorizedExecption, ServerException;
 
     List<DatasourceType> getDatasources();
+
+    boolean reconnect(Long id, DbBaseInfo dbBaseInfo, User user) throws NotFoundException, UnAuthorizedExecption, ServerException;
 }

@@ -19,10 +19,10 @@
  */
 
 import { IChartProps } from '../../components/Chart'
+import { DEFAULT_SPLITER } from 'app/globalConstants'
 import {
   decodeMetricName,
-  getChartTooltipLabel,
-  getAggregatorLocale
+  getChartTooltipLabel
 } from '../../components/util'
 import {
   getDimetionAxisOption,
@@ -31,15 +31,16 @@ import {
   getLegendOption,
   getGridPositions,
   makeGrouped,
-  distinctXaxis
+  getGroupedXaxis,
+  getCartesianChartMetrics
 } from './util'
 import { getFormattedValue } from '../../components/Config/Format'
 const defaultTheme = require('assets/json/echartsThemes/default.project.json')
 const defaultThemeColors = defaultTheme.theme.color
 
 export default function (chartProps: IChartProps, drillOptions?: any) {
-  const { data, cols, metrics, chartStyles, color, tip } = chartProps
-
+  const { data, cols, chartStyles, color, tip } = chartProps
+  const metrics = getCartesianChartMetrics(chartProps.metrics)
   const { spec, xAxis, yAxis, splitLine, label, legend } = chartStyles
 
   const {
@@ -62,10 +63,11 @@ export default function (chartProps: IChartProps, drillOptions?: any) {
   }
 
   const xAxisColumnName = cols[0].name
-  let xAxisData = data.map((d) => d[xAxisColumnName] || '')
+  let xAxisData = []
   let grouped = {}
+
   if (color.items.length) {
-    xAxisData = distinctXaxis(data, xAxisColumnName)
+    xAxisData = getGroupedXaxis(data, xAxisColumnName, metrics)
     grouped = makeGrouped(
       data,
       color.items.map((c) => c.name),
@@ -73,6 +75,8 @@ export default function (chartProps: IChartProps, drillOptions?: any) {
       metrics,
       xAxisData
     )
+  } else {
+    xAxisData = data.map((d) => d[xAxisColumnName] || '')
   }
 
   const series = []
@@ -80,13 +84,11 @@ export default function (chartProps: IChartProps, drillOptions?: any) {
 
   metrics.forEach((m, i) => {
     const decodedMetricName = decodeMetricName(m.name)
-    const localeMetricName = `[${getAggregatorLocale(
-      m.agg
-    )}] ${decodedMetricName}`
     if (color.items.length) {
       Object.entries(grouped).forEach(([k, v]: [string, any[]]) => {
         const serieObj = {
-          name: `${k} ${localeMetricName}`,
+          id: `${m.name}${DEFAULT_SPLITER}${DEFAULT_SPLITER}${k}`,
+          name: `${k}${metrics.length > 1 ? ` ${m.displayName}` : ''}`,
           type: 'line',
           sampling: 'average',
           data: v.map((g, index) => {
@@ -136,7 +138,8 @@ export default function (chartProps: IChartProps, drillOptions?: any) {
       })
     } else {
       const serieObj = {
-        name: decodedMetricName,
+        id: m.name,
+        name: m.displayName,
         type: 'line',
         sampling: 'average',
         data: data.map((g, index) => {

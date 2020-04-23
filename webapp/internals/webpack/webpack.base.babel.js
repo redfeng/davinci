@@ -36,7 +36,6 @@ module.exports = options => ({
       },
       {
         test: /\.js$/, // Transform all .js files required somewhere with Babel
-        exclude: /node_modules(?!\/quill-image-drop-module|quill-image-resize-module)/,
         use: 'happypack/loader?id=js'
       },
       {
@@ -60,9 +59,14 @@ module.exports = options => ({
         use: [
           'style-loader',
           'css-loader',
-          `less-loader?{"sourceMap": true, "modifyVars": ${JSON.stringify(
-            overrideLessVariables
-          )}}`
+          {
+            loader: 'less-loader',
+            options: {
+              sourceMap: true,
+              javascriptEnabled: true,
+              modifyVars: overrideLessVariables
+            }
+          }
         ]
       },
       {
@@ -70,9 +74,21 @@ module.exports = options => ({
         exclude: /node_modules/,
         use: [
           'style-loader',
-          'css-loader?modules&importLoaders=1',
+          {
+            loader: 'css-loader',
+            options: {
+              modules: true,
+              importLoaders: 1
+            }
+          },
           'postcss-loader',
-          'less-loader'
+          {
+            loader: 'less-loader',
+            options: {
+              sourceMap: true,
+              javascriptEnabled: true
+            }
+          }
         ]
       },
       {
@@ -158,9 +174,6 @@ module.exports = options => ({
           request: '../../locale', // resolved relatively
       });
     }),
-    new webpack.ProvidePlugin({
-      'window.Quill': 'quill'
-    }),
     new HappyPack({
       id: 'typescript',
       loaders: options.tsLoaders,
@@ -179,8 +192,9 @@ module.exports = options => ({
     extensions: ['.js', '.jsx', '.ts', '.tsx', '.react.js'],
     mainFields: ['browser', 'jsnext:main', 'main'],
     alias: {
-      'react-dom': '@hot-loader/react-dom', // https://github.com/gaearon/react-hot-loader/issues/1227
+      'react-resizable': path.resolve(process.cwd(), 'libs/react-resizable'),
       app: path.resolve(process.cwd(), 'app'),
+      share: path.resolve(process.cwd(), 'share'),
       libs: path.resolve(process.cwd(), 'libs'),
       assets: path.resolve(process.cwd(), 'app/assets')
       // fonts: path.resolve(process.cwd(), 'app/assets/fonts')

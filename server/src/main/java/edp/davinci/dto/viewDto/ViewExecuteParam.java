@@ -25,10 +25,8 @@ import edp.core.utils.SqlUtils;
 import lombok.Data;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Matcher;
 import java.util.stream.Collectors;
 
 import static edp.core.consts.Consts.*;
@@ -99,24 +97,23 @@ public class ViewExecuteParam {
         List<Order> list = null;
         if (!CollectionUtils.isEmpty(orders)) {
             list = new ArrayList<>();
-            Iterator<Order> iterator = this.orders.iterator();
-            while (iterator.hasNext()) {
-                Order order = iterator.next();
+            String prefix = SqlUtils.getKeywordPrefix(jdbcUrl, dbVersion);
+            String suffix = SqlUtils.getKeywordSuffix(jdbcUrl, dbVersion);
+
+            for (Order order : this.orders) {
                 String column = order.getColumn().trim();
-                Matcher matcher = PATTERN_SQL_AGGREGATE.matcher(order.getColumn().trim().toLowerCase());
-                if (!matcher.find()) {
-                    String prefix = SqlUtils.getKeywordPrefix(jdbcUrl, dbVersion);
-                    String suffix = SqlUtils.getKeywordSuffix(jdbcUrl, dbVersion);
-                    StringBuilder columnBuilder = new StringBuilder();
-                    if (!column.startsWith(prefix)) {
-                        columnBuilder.append(prefix);
-                    }
-                    columnBuilder.append(column);
-                    if (!column.endsWith(suffix)) {
-                        columnBuilder.append(suffix);
-                    }
-                    order.setColumn(columnBuilder.toString());
+//                Matcher matcher = PATTERN_SQL_AGGREGATE.matcher(order.getColumn().trim().toLowerCase());
+//                if (!matcher.find()) {
+                StringBuilder columnBuilder = new StringBuilder();
+                if (!column.startsWith(prefix)) {
+                    columnBuilder.append(prefix);
                 }
+                columnBuilder.append(column);
+                if (!column.endsWith(suffix)) {
+                    columnBuilder.append(suffix);
+                }
+                order.setColumn(columnBuilder.toString());
+//                }
                 list.add(order);
             }
         }
@@ -148,14 +145,14 @@ public class ViewExecuteParam {
             StringBuilder sb = new StringBuilder();
             if ("COUNTDISTINCT".equals(func.trim().toUpperCase())) {
                 sb.append("COUNT").append(PARENTHESES_START).append("DISTINCT").append(SPACE);
-                sb.append(getField(column, jdbcUrl, dbVersion));
+                sb.append(ViewExecuteParam.getField(column, jdbcUrl, dbVersion));
                 sb.append(PARENTHESES_END);
                 sb.append(" AS ").append(SqlUtils.getAliasPrefix(jdbcUrl, dbVersion)).append("COUNTDISTINCT").append(PARENTHESES_START);
                 sb.append(column);
                 sb.append(PARENTHESES_END).append(SqlUtils.getAliasSuffix(jdbcUrl, dbVersion));
             } else {
                 sb.append(func.trim()).append(PARENTHESES_START);
-                sb.append(getField(column, jdbcUrl, dbVersion));
+                sb.append(ViewExecuteParam.getField(column, jdbcUrl, dbVersion));
                 sb.append(PARENTHESES_END);
                 sb.append(" AS ").append(SqlUtils.getAliasPrefix(jdbcUrl, dbVersion));
                 sb.append(func.trim()).append(PARENTHESES_START);

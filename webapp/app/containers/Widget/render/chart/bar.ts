@@ -19,6 +19,7 @@
  */
 
 import { IChartProps } from '../../components/Chart'
+import { DEFAULT_SPLITER } from 'app/globalConstants'
 import {
   IFieldFormatConfig,
   getFormattedValue,
@@ -26,8 +27,7 @@ import {
 } from 'containers/Widget/components/Config/Format'
 import {
   decodeMetricName,
-  getChartTooltipLabel,
-  getAggregatorLocale
+  getChartTooltipLabel
 } from '../../components/util'
 import {
   getDimetionAxisOption,
@@ -36,16 +36,20 @@ import {
   getLegendOption,
   getGridPositions,
   makeGrouped,
-  distinctXaxis
+  getGroupedXaxis,
+  getCartesianChartMetrics
 } from './util'
 import { getStackName, EmptyStack } from 'containers/Widget/components/Config/Stack'
 const defaultTheme = require('assets/json/echartsThemes/default.project.json')
 const defaultThemeColors = defaultTheme.theme.color
 
 import { barChartStylesMigrationRecorder } from 'utils/migrationRecorders'
+import { inGroupColorSort } from '../../components/Config/Sort/util'
+import { FieldSortTypes } from '../../components/Config/Sort'
 
 export default function (chartProps: IChartProps, drillOptions) {
-  const { data, cols, metrics, chartStyles: prevChartStyles, color, tip } = chartProps
+  const { data, cols, chartStyles: prevChartStyles, color, tip } = chartProps
+  const metrics =  getCartesianChartMetrics(chartProps.metrics)
   const chartStyles = barChartStylesMigrationRecorder(prevChartStyles)
 
   const { bar, label, legend, xAxis, yAxis, splitLine } = chartStyles
@@ -81,8 +85,8 @@ export default function (chartProps: IChartProps, drillOptions) {
     label: {
       ...getLabelOption('bar', label, metrics, false, {
         formatter: (params) => {
-          const { value, seriesName } = params
-          const m = metrics.find((m) => decodeMetricName(m.name) === seriesName)
+          const { value, seriesId } = params
+          const m = metrics.find((m) => m.name === seriesId.split(`${DEFAULT_SPLITER}${DEFAULT_SPLITER}`)[0])
           let format: IFieldFormatConfig = m.format
           let formattedValue = value
           if (percentage) {
@@ -103,11 +107,12 @@ export default function (chartProps: IChartProps, drillOptions) {
 
   const xAxisColumnName = cols.length ? cols[0].name : ''
 
-  let xAxisData = data.map((d) => d[xAxisColumnName] || '')
+  let xAxisData = []
   let grouped = {}
   let percentGrouped = {}
+
   if (color.items.length) {
-    xAxisData = distinctXaxis(data, xAxisColumnName)
+    xAxisData = getGroupedXaxis(data, xAxisColumnName, metrics)
     grouped = makeGrouped(
       data,
       color.items.map((c) => c.name),
@@ -128,15 +133,14 @@ export default function (chartProps: IChartProps, drillOptions) {
       metrics,
       configKeys
     )
+  } else {
+    xAxisData = data.map((d) => d[xAxisColumnName] || '')
   }
 
   const series = []
   const seriesData = []
   metrics.forEach((m, i) => {
     const decodedMetricName = decodeMetricName(m.name)
-    const localeMetricName = `[${getAggregatorLocale(
-      m.agg
-    )}] ${decodedMetricName}`
     const stackOption = turnOnStack
       ? { stack: getStackName(m.name, stackConfig) }
       : null
@@ -146,9 +150,18 @@ export default function (chartProps: IChartProps, drillOptions) {
         sumArr.push(getColorDataSum(v, metrics))
       })
 
-      Object.entries(grouped).forEach(([k, v]: [string, any[]]) => {
+      const groupEntries = Object.entries(grouped)
+      const customColorSort = color.items
+        .filter(({ sort }) => sort && sort.sortType === FieldSortTypes.Custom)
+        .map(({ name, sort }) => ({ name, list: sort[FieldSortTypes.Custom].sortList }))
+      if (customColorSort.length) {
+        inGroupColorSort(groupEntries, customColorSort[0])
+      }
+
+      groupEntries.forEach(([k, v]: [string, any[]]) => {
         const serieObj = {
-          name: `${k} ${localeMetricName}`,
+          id: `${m.name}${DEFAULT_SPLITER}${DEFAULT_SPLITER}${k}`,
+          name: `${k}${metrics.length > 1 ? ` ${m.displayName}` : ''}`,
           type: 'bar',
           ...stackOption,
           sampling: 'average',
@@ -196,8 +209,8 @@ export default function (chartProps: IChartProps, drillOptions) {
           }),
           itemStyle: {
             normal: {
-              opacity: selectedItems && selectedItems.length > 0 ? 0.25 : 1
-              // color: color.items[0].config.values[k]
+              opacity: selectedItems && selectedItems.length > 0 ? 0.25 : 1,
+              color: color.items[0].config.values[k]
             }
           },
           ...labelOption
@@ -207,7 +220,8 @@ export default function (chartProps: IChartProps, drillOptions) {
       })
     } else {
       const serieObj = {
-        name: decodedMetricName,
+        id: m.name,
+        name: m.displayName,
         type: 'bar',
         ...stackOption,
         sampling: 'average',
@@ -269,7 +283,7 @@ export default function (chartProps: IChartProps, drillOptions) {
             borderWidth,
             borderType,
             barBorderRadius,
-            color: color.value[m.name] || defaultThemeColors[i]
+            color: color.value[m.name] || defaultThemeColors[i % defaultThemeColors.length]
           }
         },
         barGap: `${barGap}%`,
