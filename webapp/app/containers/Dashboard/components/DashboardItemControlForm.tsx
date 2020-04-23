@@ -20,6 +20,7 @@
 
 import React, { PureComponent, Suspense } from 'react'
 import { Form, Button, Row, Col } from 'antd'
+import classnames from 'classnames'
 import { FormComponentProps } from 'antd/lib/form/Form'
 import { IQueryConditions } from '../Grid'
 import {
@@ -27,17 +28,19 @@ import {
   ILocalRenderTreeItem,
   IControlRequestParams,
   ILocalControl,
-  getControlRenderTree,
-  getModelValue,
-  getVariableValue,
   IControlRelatedField,
   OnGetControlOptions,
-  IMapControlOptions,
-  getParents,
+  IMapControlOptions
+} from 'app/components/Filters/types'
+import {
+  getVariableValue,
+  getModelValue,
+  deserializeDefaultValue,
+  getControlRenderTree,
   getAllChildren,
-  deserializeDefaultValue
-} from 'app/components/Filters'
-import { SHOULD_LOAD_OPTIONS, defaultFilterControlGridProps } from 'app/components/Filters/filterTypes'
+  getParents
+} from 'app/components/Filters/util'
+import { SHOULD_LOAD_OPTIONS, defaultFilterControlGridProps, fullScreenFilterControlGridProps } from 'app/components/Filters/filterTypes'
 import FilterControl from 'app/components/Filters/FilterControl'
 import { localControlMigrationRecorder } from 'app/utils/migrationRecorders'
 
@@ -50,6 +53,7 @@ interface IDashboardItemControlFormProps {
   onGetOptions: OnGetControlOptions
   onSearch: (queayConditions: Partial<IQueryConditions>) => void
   onHide: () => void
+  isFullScreen?: boolean
 }
 
 interface IDashboardItemControlFormStates {
@@ -150,7 +154,6 @@ export class DashboardItemControlForm extends PureComponent<IDashboardItemContro
       customOptions,
       options
     } = renderControl as ILocalRenderTreeItem
-
     if (customOptions) {
       onGetOptions(key, true, options)
     } else {
@@ -161,6 +164,7 @@ export class DashboardItemControlForm extends PureComponent<IDashboardItemContro
       parents.forEach((parentControl) => {
         const parentValue = controlValues[parentControl.key]
         if (parentControl.interactionType === 'column') {
+          // get filters
           filters = filters.concat(getModelValue(parentControl, parentControl.fields as IControlRelatedField, parentValue))
         } else {
           variables = variables.concat(getVariableValue(parentControl, parentControl.fields, parentValue))
@@ -229,14 +233,14 @@ export class DashboardItemControlForm extends PureComponent<IDashboardItemContro
       variables: [],
       tempFilters: []
     })
-
     onSearch({ ...queryConditions })
 
     onHide()
+
   }
 
   private renderFilterControls = (renderTree: IRenderTreeItem[], parents?: ILocalControl[]) => {
-    const { form, mapOptions } = this.props
+    const { form, mapOptions, isFullScreen } = this.props
     const { controlValues } = this.state
 
     let components = []
@@ -255,12 +259,16 @@ export class DashboardItemControlForm extends PureComponent<IDashboardItemContro
             return values
           }, [])
         : null
-      const controlGridProps = width
+      let controlGridProps = width
           ? {
               lg: width,
               md: width < 8 ? 12 : 24
             }
           : defaultFilterControlGridProps
+
+      if (isFullScreen) {
+        controlGridProps = fullScreenFilterControlGridProps
+      }    
       components = components.concat(
         <Col
           key={key}
@@ -287,7 +295,11 @@ export class DashboardItemControlForm extends PureComponent<IDashboardItemContro
 
   public render () {
     const { renderTree } = this.state
-
+    const { isFullScreen } = this.props
+    const buttonRow = classnames({
+      [styles.buttonRow]: true,
+      [styles.mt16]: isFullScreen
+    })
     return (
       <Form className={styles.controlForm}>
         <Row gutter={10}>
@@ -295,7 +307,7 @@ export class DashboardItemControlForm extends PureComponent<IDashboardItemContro
             {this.renderFilterControls(renderTree)}
           </Suspense>
         </Row>
-        <Row className={styles.buttonRow}>
+        <Row className={buttonRow}>
           <Col span={24}>
             <Button type="primary" onClick={this.search}>查询</Button>
           </Col>

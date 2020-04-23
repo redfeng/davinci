@@ -1,12 +1,12 @@
 import * as React from 'react'
 import { compose } from 'redux'
 import { connect } from 'react-redux'
-import { Link } from 'react-router'
+import { Link } from 'react-router-dom'
 import { Icon, message, Breadcrumb } from 'antd'
 import { WrappedFormUtils } from 'antd/lib/form/Form'
-import Box from '../../components/Box'
+import Box from 'components/Box'
 const styles = require('../Profile/profile.less')
-const utilStyles = require('../../assets/less/util.less')
+const utilStyles = require('assets/less/util.less')
 import ResetPasswordForm from './ResetPasswordForm'
 
 import { changeUserPassword } from '../App/actions'

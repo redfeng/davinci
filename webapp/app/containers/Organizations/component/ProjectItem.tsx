@@ -1,21 +1,20 @@
-import * as React from 'react'
-import * as Organization from '../Organization'
+import React from 'react'
+import { IOrganization } from '../types'
 const styles = require('../Organization.less')
 import { Tag, Icon, Popconfirm, Tooltip } from 'antd'
-import ComponentPermission from '../../Account/components/checkMemberPermission'
-import Star from '../../../components/StarPanel/Star'
-import { IProject, IStarUser } from '../../Projects'
-const utilStyles = require('../../../assets/less/util.less')
+import ComponentPermission from 'containers/Account/components/checkMemberPermission'
+import Star from 'components/StarPanel/Star'
+import { IProject, IStarUser } from 'containers/Projects/types'
 
 interface IProjectItemProps {
   key: number
-  options: Organization.IOrganizationProjects,
+  options: IProject,
   toProject: (id: number) => any
   loginUser: any
   deleteProject: (id: number) => any
   starUser: IStarUser[]
   collectProjects: IProject[]
-  currentOrganization: Organization.IOrganization
+  currentOrganization: IOrganization
   unStar?: (id: number) => any
   userList?: (id: number) => any
   showEditProjectForm: (type: string, option: any) => any
@@ -105,7 +104,7 @@ export class ProjectItem extends React.PureComponent<IProjectItemProps, IPropsSt
       CreateButton = ComponentPermission(currentOrganization, '')(Icon)
     }
 
-   // const bg = require(`../../assets/images/bg${options.pic}.png`)
+   // const bg = require(`assets/images/bg${options.pic}.png`)
     let StarPanel = void 0
     if (options) {
       StarPanel = <Star d={options} starUser={starUser} unStar={this.props.unStar} userList={this.props.userList}/>
@@ -115,7 +114,7 @@ export class ProjectItem extends React.PureComponent<IProjectItemProps, IPropsSt
       <div className={styles.projectItemWrap} onClick={this.props.toProject(options.id)}>
         <div
           className={styles.avatarWrapper}
-          style={{backgroundImage: `url(${require(`../../../assets/images/bg${options.pic}.png`)})`}}
+          style={{backgroundImage: `url(${require(`assets/images/bg${options.pic}.png`)})`}}
         />
         <div className={styles.detailWrapper}>
           <div className={styles.titleWrapper} style={{ flex: 1 }}>

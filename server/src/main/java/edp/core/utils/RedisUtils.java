@@ -19,61 +19,96 @@
 
 package edp.core.utils;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
-
-import java.util.concurrent.TimeUnit;
 
 @Component
 public class RedisUtils {
 
-    @Autowired(required = false)
-    @Qualifier("InitRedisTemplate")
-    private RedisTemplate<String, Object> redisTemplate;
+	@Autowired(required = false)
+	@Qualifier("initRedisTemplate")
+	private RedisTemplate<String, Object> redisTemplate;
 
-    public boolean set(String key, Object value) {
-        if (null != redisTemplate) {
-            ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
-            valueOperations.set(key, value);
-            return true;
-        }
-        return false;
-    }
+	@Value("${spring.redis.isEnable:false}")
+	private boolean isRedisEnable;
 
-    public boolean set(String key, Object value, Long millisecond) {
-        if (null != redisTemplate) {
-            ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
-            valueOperations.set(key, value, millisecond, TimeUnit.MILLISECONDS);
-            return true;
-        }
-        return false;
-    }
+	private final String script = "if redis.call('setnx', KEYS[1], ARGV[1]) == 1 then return redis.call('expire', KEYS[1], ARGV[2]) else return 0 end";
 
-    public boolean set(String key, Object value, Long l, TimeUnit timeUnit) {
-        if (null != redisTemplate) {
-            ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
-            valueOperations.set(key, value, l, timeUnit);
-            return true;
-        }
-        return false;
-    }
+	public boolean isRedisEnable() {
+		return isRedisEnable;
+	}
 
-    public Object get(String key) {
-        if (null == redisTemplate) {
-            return null;
-        }
-        ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
-        return valueOperations.get(key);
-    }
+	public boolean set(String key, Object value) {
+		if (!isRedisEnable) {
+			return false;
+		}
+		ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+		valueOperations.set(key, value);
+		return true;
+	}
 
-    public boolean hasKey(String key) {
-        return null != redisTemplate && redisTemplate.hasKey(key);
-    }
+	public boolean set(String key, Object value, Long l, TimeUnit timeUnit) {
+		if (!isRedisEnable) {
+			return false;
+		}
+		ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+		valueOperations.set(key, value, l, timeUnit);
+		return true;
+	}
 
-    public boolean delete(String key) {
-        return null != redisTemplate && redisTemplate.delete(key);
-    }
+	public Object get(String key) {
+		if (!isRedisEnable) {
+			return null;
+		}
+		ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+		return valueOperations.get(key);
+	}
+
+	public boolean delete(String key) {
+		return isRedisEnable && redisTemplate.delete(key);
+	}
+
+	public void convertAndSend(String channel, Object message) {
+
+		if (!isRedisEnable) {
+			throw new RuntimeException("Redis is disabled");
+		}
+		
+		redisTemplate.convertAndSend(channel, message);
+	}
+
+	@SuppressWarnings("unchecked")
+	public boolean setIfAbsent(String key, Object value, int timeout) {
+
+		if (!isRedisEnable) {
+			throw new RuntimeException("Redis is disabled");
+		}
+
+		List<String> keys = new ArrayList<>();
+		keys.add(key);
+
+		Object[] values = new Object[] { value, timeout };
+
+		return 1L == (Long) redisTemplate.execute(RedisScript.of(script, Long.class), keys, values);
+	}
+
+	public boolean setIfAbsent(String key, Object value) {
+
+		if (!isRedisEnable) {
+			throw new RuntimeException("Redis is disabled");
+		}
+
+		ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+		return valueOperations.setIfAbsent(key, value);
+	}
+
 }

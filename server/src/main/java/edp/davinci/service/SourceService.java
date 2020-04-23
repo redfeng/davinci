@@ -23,6 +23,7 @@ import edp.core.exception.NotFoundException;
 import edp.core.exception.ServerException;
 import edp.core.exception.UnAuthorizedExecption;
 import edp.core.model.DBTables;
+import edp.davinci.dto.sourceDto.DatasourceType;
 import edp.core.model.TableInfo;
 import edp.davinci.core.service.CheckEntityService;
 import edp.davinci.dto.sourceDto.*;
@@ -33,7 +34,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 public interface SourceService extends CheckEntityService {
-
 
     List<Source> getSources(Long projectId, User user) throws NotFoundException, UnAuthorizedExecption, ServerException;
 
@@ -55,7 +55,9 @@ public interface SourceService extends CheckEntityService {
 
     TableInfo getTableInfo(Long id, String dbName, String tableName, User user) throws NotFoundException;
 
-    boolean isTestConnection(SourceConfig config) throws ServerException;
-
     SourceDetail getSourceDetail(Long id, User user) throws NotFoundException, UnAuthorizedExecption, ServerException;
+
+    List<DatasourceType> getDatasources();
+
+    boolean reconnect(Long id, DbBaseInfo dbBaseInfo, User user) throws NotFoundException, UnAuthorizedExecption, ServerException;
 }

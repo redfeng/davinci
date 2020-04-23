@@ -19,20 +19,24 @@
 
 package edp.core.model;
 
-import edp.davinci.common.model.RecordInfo;
+import java.util.List;
+
 import edp.davinci.model.Source;
-import lombok.extern.slf4j.Slf4j;
 
-
-@Slf4j
 public abstract class BaseSource extends RecordInfo<Source> {
 
+	public abstract String getJdbcUrl();
 
-    public abstract String getJdbcUrl();
+	public abstract String getUsername();
 
+	public abstract String getPassword();
 
-    public abstract String getUsername();
+	public abstract String getDatabase();
 
+	public abstract String getDbVersion();
 
-    public abstract String getPassword();
+	public abstract List<Dict> getProperties();
+
+	public abstract boolean isExt();
+
 }

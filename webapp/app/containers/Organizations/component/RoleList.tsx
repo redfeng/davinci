@@ -2,20 +2,19 @@ import React from 'react'
 import { WrappedFormUtils } from 'antd/lib/form/Form'
 import { createStructuredSelector } from 'reselect'
 import RoleForm from './RoleForm'
-import debounce from 'lodash/debounce'
 import RelRoleMember from './RelRoleMember'
 import { connect } from 'react-redux'
-import { InjectedRouter } from 'react-router/lib/Router'
 
-import { Row, Col, Tooltip, Button, Input, Table, Modal, Icon, Popconfirm, Divider, message} from 'antd'
+import { Row, Col, Tooltip, Button, Input, Table, Modal, Popconfirm, Divider, message} from 'antd'
 import { ColumnProps } from 'antd/lib/table'
 const styles = require('../Organization.less')
 import * as Organization from '../Organization'
-import {checkNameUniqueAction} from '../../App/actions'
-import {addRole, loadOrganizationRole, deleteRole, relRoleMember, editRole, getRelRoleMember} from '../actions'
-import Avatar from '../../../components/Avatar'
-import ComponentPermission from '../../Account/components/checkMemberPermission'
+import {checkNameUniqueAction} from 'containers/App/actions'
+import { OrganizationActions } from '../actions'
+const { addRole, loadOrganizationRole, deleteRole, relRoleMember, editRole, getRelRoleMember } = OrganizationActions
+import ComponentPermission from 'containers/Account/components/checkMemberPermission'
 import { makeSelectRoleModalLoading, makeSelectCurrentOrganizationRole } from '../selectors'
+import { IOrganization } from '../types'
 
 interface IRoleState {
   formType: string
@@ -33,14 +32,13 @@ interface IRoleState {
 
 interface IRoleProps {
   isLoginUserOwner: boolean
-  router?: InjectedRouter
   onAddRole?: (name: string, desc: string, id: number, resolve: () => any) => any
   onEditRole?: (name: string, desc: string, id: number, resolve: () => any) => any
   onDeleteRole: (id, resolve) => any
   onRelRoleMember: (id: number, memberIds: number[], resolve: () => any) => any
   onGetRelRoleMember: (id: number, resolve: (result: any) => any) => any
   onLoadOrganizationRole?: (orgId: number) => any
-  currentOrganization: Organization.IOrganization
+  currentOrganization: IOrganization
   currentOrganizationRole: any
   organizationMembers: any[]
   organizations: any
@@ -54,7 +52,7 @@ export interface ITeam {
   id?: number
   role?: number
   avatar?: string
-  organization?: Organization.IOrganization
+  organization?: IOrganization
   name?: string
   visibility?: boolean
   description: string

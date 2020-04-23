@@ -26,6 +26,7 @@ import {
   LOAD_SHARE_WIDGET_SUCCESS,
   LOAD_SHARE_RESULTSET,
   LOAD_SHARE_RESULTSET_SUCCESS,
+  LOAD_SHARE_RESULTSET_FAILURE,
   SET_INDIVIDUAL_DASHBOARD,
   LOAD_WIDGET_CSV,
   LOAD_WIDGET_CSV_SUCCESS,
@@ -38,7 +39,16 @@ import {
   DELETE_DRILL_HISTORY,
   SET_SELECT_OPTIONS,
   SELECT_DASHBOARD_ITEM_CHART,
-  GLOBAL_CONTROL_CHANGE
+  LOAD_DOWNLOAD_LIST,
+  LOAD_DOWNLOAD_LIST_SUCCESS,
+  LOAD_DOWNLOAD_LIST_FAILURE,
+  DOWNLOAD_FILE,
+  DOWNLOAD_FILE_FAILURE,
+  DOWNLOAD_FILE_SUCCESS,
+  INITIATE_DOWNLOAD_TASK,
+  INITIATE_DOWNLOAD_TASK_SUCCESS,
+  INITIATE_DOWNLOAD_TASK_FAILURE,
+  SEND_SHARE_PARAMS
 } from './constants'
 
 export function getDashboard (token, reject) {
@@ -106,6 +116,16 @@ export function resultsetGetted (renderType, itemId, requestParams, resultset) {
       itemId,
       requestParams,
       resultset
+    }
+  }
+}
+
+export function getResultsetFail (itemId, errorMessage) {
+  return {
+    type: LOAD_SHARE_RESULTSET_FAILURE,
+    payload: {
+      itemId,
+      errorMessage
     }
   }
 }
@@ -230,11 +250,99 @@ export function selectDashboardItemChart (itemId, renderType, selectedItems) {
   }
 }
 
-export function globalControlChange (controlRequestParamsByItem) {
+export function loadDownloadList (shareClinetId, token) {
   return {
-    type: GLOBAL_CONTROL_CHANGE,
+    type: LOAD_DOWNLOAD_LIST,
     payload: {
-      controlRequestParamsByItem
+      shareClinetId,
+      token
+    }
+  }
+}
+
+export function downloadListLoaded (list) {
+  return {
+    type: LOAD_DOWNLOAD_LIST_SUCCESS,
+    payload: {
+      list
+    }
+  }
+}
+
+export function loadDownloadListFail (error) {
+  return {
+    type: LOAD_DOWNLOAD_LIST_FAILURE,
+    payload: {
+      error
+    }
+  }
+}
+
+export function downloadFile (id, shareClinetId, token) {
+  return {
+    type: DOWNLOAD_FILE,
+    payload: {
+      id,
+      shareClinetId,
+      token
+    }
+  }
+}
+
+export function fileDownloaded (id) {
+  return {
+    type: DOWNLOAD_FILE_SUCCESS,
+    payload: {
+      id
+    }
+  }
+}
+
+export function downloadFileFail (error) {
+  return {
+    type: DOWNLOAD_FILE_FAILURE,
+    payload: {
+      error
+    }
+  }
+}
+
+export function initiateDownloadTask (shareClientId, dataToken, type, downloadParams?, itemId?) {
+  return {
+    type: INITIATE_DOWNLOAD_TASK,
+    payload: {
+      shareClientId,
+      dataToken,
+      type,
+      downloadParams,
+      itemId
+    }
+  }
+}
+
+export function DownloadTaskInitiated (type, itemId?) {
+  return {
+    type: INITIATE_DOWNLOAD_TASK_SUCCESS,
+    payload: {
+      type,
+      itemId
+    }
+  }
+}
+
+export function initiateDownloadTaskFail (error) {
+  return {
+    type: INITIATE_DOWNLOAD_TASK_FAILURE,
+    payload: {
+      error
+    }
+  }
+}
+export function sendShareParams (params) {
+  return {
+    type: SEND_SHARE_PARAMS,
+    payload: {
+      params
     }
   }
 }

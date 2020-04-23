@@ -19,10 +19,15 @@
 
 package edp.davinci.model;
 
+import com.alibaba.fastjson.annotation.JSONField;
 import lombok.Data;
+
+import javax.persistence.Column;
+import java.util.Date;
 
 @Data
 public class Project {
+
     private Long id;
 
     private String name;
@@ -43,10 +48,25 @@ public class Project {
 
     private Long initialOrgId;
 
+    @JSONField(serialize = false)
+    private Date createTime = new Date();
+
+    @JSONField(serialize = false)
+    private Date updateTime;
+
+    @JSONField(serialize = false)
+    private Long updateBy;
+
+    @JSONField(serialize = false)
+    @Column(name = "create_by")
+    private Long createUserId;
+
     public Project() {
+
     }
 
     public Project(Long id, Long userId) {
+
         this.id = id;
         this.userId = userId;
     }

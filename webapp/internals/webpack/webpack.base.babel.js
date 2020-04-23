@@ -2,8 +2,11 @@
  * COMMON WEBPACK CONFIGURATION
  */
 
+const os = require('os')
 const path = require('path')
 const webpack = require('webpack')
+const HappyPack = require('happypack')
+const happyThreadPool = HappyPack.ThreadPool({ size: os.cpus().length })
 const overrideLessVariables = require('../../app/assets/override/lessVariables')
 
 // Remove this line once the following warning goes away (it was meant for webpack loader authors not users):
@@ -28,15 +31,13 @@ module.exports = options => ({
     rules: [
       {
         test: /\.tsx?$/,
-        use: options.tsLoaders
+        exclude: /node_modules/,
+        use: 'happypack/loader?id=typescript'
       },
       {
         test: /\.js$/, // Transform all .js files required somewhere with Babel
         exclude: /node_modules(?!\/quill-image-drop-module|quill-image-resize-module)/,
-        use: {
-          loader: 'babel-loader',
-          options: options.babelQuery
-        }
+        use: 'happypack/loader?id=js'
       },
       {
         // Do not transform vendor's CSS with CSS-modules
@@ -59,9 +60,14 @@ module.exports = options => ({
         use: [
           'style-loader',
           'css-loader',
-          `less-loader?{"sourceMap": true, "modifyVars": ${JSON.stringify(
-            overrideLessVariables
-          )}}`
+          {
+            loader: 'less-loader',
+            options: {
+              sourceMap: true,
+              javascriptEnabled: true,
+              modifyVars: overrideLessVariables
+            }
+          }
         ]
       },
       {
@@ -69,9 +75,21 @@ module.exports = options => ({
         exclude: /node_modules/,
         use: [
           'style-loader',
-          'css-loader?modules&importLoaders=1',
+          {
+            loader: 'css-loader',
+            options: {
+              modules: true,
+              importLoaders: 1
+            }
+          },
           'postcss-loader',
-          'less-loader'
+          {
+            loader: 'less-loader',
+            options: {
+              sourceMap: true,
+              javascriptEnabled: true
+            }
+          }
         ]
       },
       {
@@ -159,6 +177,18 @@ module.exports = options => ({
     }),
     new webpack.ProvidePlugin({
       'window.Quill': 'quill'
+    }),
+    new HappyPack({
+      id: 'typescript',
+      loaders: options.tsLoaders,
+      threadPool: happyThreadPool,
+      verbose: true
+    }),
+    new HappyPack({
+      id: 'js',
+      loaders: ['babel-loader'],
+      threadPool: happyThreadPool,
+      verbose: true
     })
   ]),
   resolve: {
@@ -166,7 +196,9 @@ module.exports = options => ({
     extensions: ['.js', '.jsx', '.ts', '.tsx', '.react.js'],
     mainFields: ['browser', 'jsnext:main', 'main'],
     alias: {
+      'react-resizable': path.resolve(process.cwd(), 'libs/react-resizable'),
       app: path.resolve(process.cwd(), 'app'),
+      share: path.resolve(process.cwd(), 'share'),
       libs: path.resolve(process.cwd(), 'libs'),
       assets: path.resolve(process.cwd(), 'app/assets')
       // fonts: path.resolve(process.cwd(), 'app/assets/fonts')

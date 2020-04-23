@@ -1,4 +1,4 @@
-@import "../../../../assets/less/variable";
+@import "~assets/less/variable";
 
 .workbench {
   background-color: @body-bg;
@@ -68,12 +68,20 @@
 }
 
 .viewSelect {
-  display: flex;
   padding: 8px;
   line-height: 24px;
-  flex-shrink: 0;
-  justify-content: space-between;
-  align-items: center;
+
+  :global {
+    .ant-select {
+      width: 100%;
+    }
+
+    .ant-select-selection {
+      background: none !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+  }
 }
 
 .columnContainer {
@@ -344,18 +352,10 @@
         width: 100%;
       }
 
-      .noVariable {
-        color: @disabled-text-color;
-
-        i {
-          margin-right: 4px;
-        }
-      }
-
       .addVariable {
         text-align: right;
         cursor: pointer;
-  
+
         &:hover {
           color: @primary-color;
         }
@@ -920,4 +920,10 @@
 .sizePanel {
   min-width: 120px;
   max-width: 256px;
+}
+
+.errorMessage {
+  max-width: 640px;
+  max-height: 480px;
+  overflow-y: auto;
 }

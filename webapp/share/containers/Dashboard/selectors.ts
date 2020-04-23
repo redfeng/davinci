@@ -20,49 +20,54 @@
 
 import { createSelector } from 'reselect'
 
-const selectShare = (state) => state.get('shareDashboard')
+const selectShare = (state) => state.shareDashboard
 
 const makeSelectDashboard = () => createSelector(
   selectShare,
-  (shareState) => shareState.get('dashboard')
+  (shareState) => shareState.dashboard
 )
 
 const makeSelectTitle = () => createSelector(
   selectShare,
-  (shareState) => shareState.get('title')
+  (shareState) => shareState.title
 )
 const makeSelectConfig = () => createSelector(
   selectShare,
-  (shareState) => shareState.get('config')
+  (shareState) => shareState.config
 )
 const makeSelectWidgets = () => createSelector(
   selectShare,
-  (shareState) => shareState.get('widgets')
+  (shareState) => shareState.widgets
 )
 const makeSelectItems = () => createSelector(
   selectShare,
-  (shareState) => shareState.get('items')
+  (shareState) => shareState.items
 )
 const makeSelectItemsInfo = () => createSelector(
   selectShare,
-  (shareState) => shareState.get('itemsInfo')
+  (shareState) => shareState.itemsInfo
 )
 const makeSelectDashboardSelectOptions = () => createSelector(
   selectShare,
-  (shareState) => shareState.get('dashboardSelectOptions')
+  (shareState) => shareState.dashboardSelectOptions
+)
+
+const makeSelectShareParams = () => createSelector(
+  selectShare,
+  (shareState) => shareState.shareParams
 )
 
 const makeSelectLinkages = () => createSelector(
   selectShare,
   (shareState) => {
-    const config = shareState.get('config')
+    const config = shareState.config
     if (!config) { return [] }
 
     const emptyConfig = {}
     const { linkages } = JSON.parse(config || emptyConfig)
     if (!linkages) { return [] }
 
-    const itemsInfo = shareState.get('itemsInfo')
+    const itemsInfo = shareState.itemsInfo
     const validLinkages = linkages.filter((l) => {
       const { linkager, trigger } = l
       return itemsInfo[linkager[0]] && itemsInfo[trigger[0]]
@@ -70,6 +75,17 @@ const makeSelectLinkages = () => createSelector(
     return validLinkages
   }
 )
+
+const makeSelectDownloadList = () => createSelector(
+  selectShare,
+  (globalState) => globalState.downloadList
+)
+
+const makeSelectDownloadListLoading = () => createSelector(
+  selectShare,
+  (globalState) => globalState.downloadListLoading
+)
+
 
 export {
   selectShare,
@@ -80,5 +96,8 @@ export {
   makeSelectWidgets,
   makeSelectItems,
   makeSelectItemsInfo,
-  makeSelectLinkages
+  makeSelectLinkages,
+  makeSelectDownloadList,
+  makeSelectDownloadListLoading,
+  makeSelectShareParams
 }

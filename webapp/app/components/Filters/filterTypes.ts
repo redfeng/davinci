@@ -1,5 +1,6 @@
 
 import OperatorTypes from 'utils/operatorTypes'
+import { DatePickerDefaultValues } from './datePickerFormats'
 
 export enum FilterTypes {
   Select = 'select',
@@ -61,11 +62,39 @@ export const FilterTypesOperatorSetting = {
   // [FilterTypes.TreeSelect]: [OperatorTypes.In, OperatorTypes.NotIn]
 }
 
+export const FilterTypesDynamicDefaultValueSetting = {
+  [FilterTypes.Date]: {
+    normal: [
+      DatePickerDefaultValues.Today,
+      DatePickerDefaultValues.Yesterday,
+      DatePickerDefaultValues.Week,
+      DatePickerDefaultValues.Day7,
+      DatePickerDefaultValues.LastWeek,
+      DatePickerDefaultValues.Month,
+      DatePickerDefaultValues.Day30,
+      DatePickerDefaultValues.LastMonth,
+      DatePickerDefaultValues.Quarter,
+      DatePickerDefaultValues.Day90,
+      DatePickerDefaultValues.LastQuarter,
+      DatePickerDefaultValues.Year,
+      DatePickerDefaultValues.Day365,
+      DatePickerDefaultValues.LastYear,
+      DatePickerDefaultValues.Custom
+    ],
+    multiple: [DatePickerDefaultValues.Custom]
+  }
+}
+
 export const CascadeFilterTypes = [
   FilterTypes.Select
   // FilterTypes.TreeSelect
 ]
 
 export const defaultFilterControlGridProps = { xxl: 3, xl: 4, lg: 6, md: 12}
+
+export const fullScreenFilterControlGridProps = {xxl: 12, xl: 12, lg: 12, md: 12}
+
+export const fullScreenGlobalControlGridProps = {xxl: 12, xl: 12, lg: 12, md: 12}
+
 
 export default FilterTypes

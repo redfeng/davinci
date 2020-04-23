@@ -18,29 +18,32 @@
  * >>
  */
 
-import * as React from 'react'
+import React from 'react'
 import { findDOMNode } from 'react-dom'
-import * as classnames from 'classnames'
+import classnames from 'classnames'
 import { IChartProps } from '../'
 import { IChartStyles, IPaginationParams } from '../../Widget'
-import { ITableHeaderConfig } from '../../Workbench/ConfigSections/TableSection'
+import { ITableHeaderConfig } from 'containers/Widget/components/Config/Table'
 
-import { IResizeCallbackData } from 'libs/react-resizable/lib/Resizable'
-import { Table as AntTable } from 'antd'
-import { TableProps, ColumnProps } from 'antd/lib/table'
+import { ResizeCallbackData } from 'libs/react-resizable'
+import { Table as AntTable, Tooltip, Icon } from 'antd'
+import { TableProps, ColumnProps, SorterResult } from 'antd/lib/table'
 import { PaginationConfig } from 'antd/lib/pagination/Pagination'
-import PaginationWithoutTotal from '../../../../../components/PaginationWithoutTotal'
-import SearchFilterDropdown from '../../../../../components/SearchFilterDropdown/index'
-import NumberFilterDropdown from '../../../../../components/NumberFilterDropdown/index'
-import DateFilterDropdown from '../../../../../components/DateFilterDropdown/index'
+import PaginationWithoutTotal from 'components/PaginationWithoutTotal'
+import SearchFilterDropdown from 'components/SearchFilterDropdown/index'
+import NumberFilterDropdown from 'components/NumberFilterDropdown/index'
+import DateFilterDropdown from 'components/DateFilterDropdown/index'
 
 import { TABLE_PAGE_SIZES } from 'app/globalConstants'
-import { decodeMetricName, getFieldAlias } from 'containers/Widget/components/util'
-import styles from '../Chart.less'
+import { getFieldAlias } from 'containers/Widget/components/Config/Field'
+import { decodeMetricName } from 'containers/Widget/components/util'
+import Styles from './Table.less'
 
 import {
   findChildConfig, traverseConfig,
   computeCellWidth, getDataColumnWidth, getMergedCellSpan, getTableCellValueRange } from './util'
+import { MapAntSortOrder } from './constants'
+import { FieldSortTypes } from '../../Config/Sort'
 import { tableComponents } from './components'
 import { resizeTableColumns } from './components/HeadCell'
 
@@ -53,9 +56,11 @@ interface ITableStates {
   data: object[]
   width: number
   pagination: IPaginationParams
+  currentSorter: { column: string, direction: FieldSortTypes }
 
   tableColumns: Array<ColumnProps<any>>
   mapTableHeaderConfig: IMapTableHeaderConfig
+  containerWidthRatio: number
   tablePagination: {
     current: number
     pageSize: number
@@ -75,9 +80,11 @@ export class Table extends React.PureComponent<IChartProps, ITableStates> {
     data: null,
     width: 0,
     pagination: null,
+    currentSorter: null,
 
     tableColumns: [],
     mapTableHeaderConfig: {},
+    containerWidthRatio: 1,
     tablePagination: {
       current: void 0,
       pageSize: void 0,
@@ -90,18 +97,32 @@ export class Table extends React.PureComponent<IChartProps, ITableStates> {
 
   private table = React.createRef<AntTable<any>>()
 
-  private handleResize = (idx: number) => (_, { size }: IResizeCallbackData) => {
-    const nextColumns = resizeTableColumns(this.state.tableColumns, idx, size.width)
+  private handleResize = (idx: number, containerWidthRatio: number) => (_, { size }: ResizeCallbackData) => {
+    const nextColumns = resizeTableColumns(this.state.tableColumns, idx, size.width, containerWidthRatio)
     this.setState({ tableColumns: nextColumns })
   }
 
-  private onPaginationChange = (current: number, pageSize: number) => {
+  private paginationChange = (current: number, pageSize: number) => {
+    const { currentSorter } = this.state
+    this.refreshTable(current, pageSize, currentSorter)
+  }
+
+  private tableChange = (pagination: PaginationConfig, _, sorter: SorterResult<object>) => {
+    const nextCurrentSorter: ITableStates['currentSorter'] = sorter.field
+      ? { column: sorter.field, direction: MapAntSortOrder[sorter.order] }
+      : null
+    this.setState({ currentSorter: nextCurrentSorter })
+    const { current, pageSize } = pagination
+    this.refreshTable(current, pageSize, nextCurrentSorter)
+  }
+
+  private refreshTable = (current: number, pageSize: number, sorter?: ITableStates['currentSorter']) => {
     const { tablePagination } = this.state
     if (pageSize !== tablePagination.pageSize) {
       current = 1
     }
     const { onPaginationChange } = this.props
-    onPaginationChange(current, pageSize)
+    onPaginationChange(current, pageSize, sorter)
   }
 
   private basePagination: PaginationConfig = {
@@ -109,8 +130,8 @@ export class Table extends React.PureComponent<IChartProps, ITableStates> {
     showQuickJumper: true,
     showSizeChanger: true,
     showTotal: (total: number) => `共${total}条`,
-    onChange: this.onPaginationChange,
-    onShowSizeChange: this.onPaginationChange
+    onChange: this.paginationChange,
+    onShowSizeChange: this.paginationChange
   }
 
   public componentDidMount () {
@@ -155,22 +176,23 @@ export class Table extends React.PureComponent<IChartProps, ITableStates> {
       || data !== prevState.data
       || width !== prevState.width
     ) {
-      const { tableColumns, mapTableHeaderConfig } = getTableColumns(nextProps)
+      const { tableColumns, mapTableHeaderConfig, containerWidthRatio } = getTableColumns(nextProps)
       const tablePagination = getPaginationOptions(nextProps)
-      return { tableColumns, mapTableHeaderConfig, tablePagination, chartStyles, data, width }
+      return { tableColumns, mapTableHeaderConfig, containerWidthRatio, tablePagination, chartStyles, data, width }
     }
     return { chartStyles, data, width }
   }
 
-  private adjustTableColumns (tableColumns: Array<ColumnProps<any>>, mapTableHeaderConfig: IMapTableHeaderConfig, containerWidth: number) {
-    const totalWidth = tableColumns.reduce((acc, col) => acc + Number(col.width), 0)
-    const ratio = totalWidth < containerWidth ? containerWidth / totalWidth : 1
+  private adjustTableColumns (
+    tableColumns: Array<ColumnProps<any>>,
+    mapTableHeaderConfig: IMapTableHeaderConfig,
+    containerWidthRatio: number
+  ) {
     traverseConfig<ColumnProps<any>>(tableColumns, 'children', (column, idx, siblings) => {
-      column.width = ratio * Number(column.width)
       const canResize = siblings === tableColumns
       column.onHeaderCell = (col) => ({
         width: col.width,
-        onResize: canResize && this.handleResize(idx),
+        onResize: canResize && this.handleResize(idx, containerWidthRatio),
         config: mapTableHeaderConfig[column.key]
       })
     })
@@ -283,7 +305,7 @@ export class Table extends React.PureComponent<IChartProps, ITableStates> {
   }
 
   private setRowClassName = (record, row) =>
-   this.state.selectedRow.some((sr) => this.isSameObj(sr, record, true)) ? styles.selectedRow : styles.unSelectedRow
+   this.state.selectedRow.some((sr) => this.isSameObj(sr, record, true)) ? Styles.selectedRow : Styles.unSelectedRow
 
 
   private getTableStyle (
@@ -293,7 +315,7 @@ export class Table extends React.PureComponent<IChartProps, ITableStates> {
     const tableStyle: React.CSSProperties = { }
     if (!headerFixed) {
       tableStyle.height = tableBodyHeght
-      tableStyle.overflowY = 'scroll'
+      tableStyle.overflowY = 'auto'
     }
     return tableStyle
   }
@@ -301,8 +323,8 @@ export class Table extends React.PureComponent<IChartProps, ITableStates> {
   public render () {
     const { data, chartStyles, width } = this.props
     const { headerFixed, bordered, withPaging, size } = chartStyles.table
-    const { tablePagination, tableColumns, tableBodyHeight, mapTableHeaderConfig } = this.state
-    const adjustedTableColumns = this.adjustTableColumns(tableColumns, mapTableHeaderConfig, width)
+    const { tablePagination, tableColumns, tableBodyHeight, mapTableHeaderConfig, containerWidthRatio } = this.state
+    const adjustedTableColumns = this.adjustTableColumns(tableColumns, mapTableHeaderConfig, containerWidthRatio)
 
     const paginationConfig: PaginationConfig = {
       ...this.basePagination,
@@ -319,8 +341,8 @@ export class Table extends React.PureComponent<IChartProps, ITableStates> {
       />
     ) : null
     const tableCls = classnames({
-      [styles.table]: true,
-      [styles.noBorder]: bordered !== undefined && !bordered
+      [Styles.table]: true,
+      [Styles.noBorder]: bordered !== undefined && !bordered
     })
 
     return (
@@ -339,6 +361,7 @@ export class Table extends React.PureComponent<IChartProps, ITableStates> {
           bordered={bordered}
           rowClassName={this.setRowClassName}
           onRowClick={this.rowClick}
+          onChange={this.tableChange}
         />
         {paginationWithoutTotal}
       </>
@@ -350,7 +373,7 @@ export default Table
 
 
 function getTableColumns (props: IChartProps) {
-  const { chartStyles } = props
+  const { chartStyles, width } = props
   if (!chartStyles.table) {
     return {
       tableColumns: [],
@@ -361,12 +384,26 @@ function getTableColumns (props: IChartProps) {
   const { headerConfig, columnsConfig, autoMergeCell, leftFixedColumns, rightFixedColumns, withNoAggregators } = chartStyles.table
   const tableColumns: Array<ColumnProps<any>> = []
   const mapTableHeaderConfig: IMapTableHeaderConfig = {}
+  const fixedColumnInfo: {[key: string]: number} = {}
+  let calculatedTotalWidth = 0
+  let fixedTotalWidth = 0
+
   cols.concat(rows).forEach((dimension) => {
     const { name, field, format } = dimension
     const headerText = getFieldAlias(field, queryVariables || {}) || name
     const column: ColumnProps<any> = {
       key: name,
-      title: headerText,
+      title: (field && field.desc) ? (
+        <>
+          {headerText}
+          <Tooltip
+            title={field.desc}
+            placement="top"
+          >
+            <Icon className={Styles.headerIcon} type="info-circle" />
+          </Tooltip>
+        </>
+      ) : headerText,
       dataIndex: name
     }
     if (autoMergeCell) {
@@ -381,11 +418,24 @@ function getTableColumns (props: IChartProps) {
       headerConfigItem = config
     })
     const columnConfigItem = columnsConfig.find((cfg) => cfg.columnName === name)
-    column.width = getDataColumnWidth(name, columnConfigItem, format, data)
-    column.width = Math.max(+column.width, computeCellWidth(headerConfigItem && headerConfigItem.style, headerText))
+    const isFixed = columnConfigItem
+      && columnConfigItem.style
+      && columnConfigItem.style.inflexible
+    if (isFixed) {
+      column.width = fixedColumnInfo[column.key] = columnConfigItem.style.width
+      fixedTotalWidth += column.width
+    } else {
+      column.width = getDataColumnWidth(name, columnConfigItem, format, data)
+      column.width = Math.max(+column.width, computeCellWidth(headerConfigItem && headerConfigItem.style, headerText))
+    }
+    calculatedTotalWidth += column.width
+    if (columnConfigItem) {
+      column.sorter = columnConfigItem.sort
+    }
     mapTableHeaderConfig[name] = headerConfigItem
     column.onCell = (record) => ({
       config: columnConfigItem,
+      format,
       cellVal: record[name],
       cellValRange: null
     })
@@ -400,7 +450,17 @@ function getTableColumns (props: IChartProps) {
     const headerText = getFieldAlias(field, queryVariables || {}) || expression
     const column: ColumnProps<any> = {
       key: name,
-      title: headerText,
+      title: (field && field.desc) ? (
+        <>
+          {headerText}
+          <Tooltip
+            title={field.desc}
+            placement="top"
+          >
+            <Icon className={Styles.headerIcon} type="info-circle" />
+          </Tooltip>
+        </>
+      ) : headerText,
       dataIndex: expression
     }
     let headerConfigItem: ITableHeaderConfig = null
@@ -408,8 +468,20 @@ function getTableColumns (props: IChartProps) {
       headerConfigItem = config
     })
     const columnConfigItem = columnsConfig.find((cfg) => cfg.columnName === name)
-    column.width = getDataColumnWidth(expression, columnConfigItem, format, data)
-    column.width = Math.max(+column.width, computeCellWidth(headerConfigItem && headerConfigItem.style, headerText))
+    const isFixed = columnConfigItem
+      && columnConfigItem.style
+      && columnConfigItem.style.inflexible
+    if (isFixed) {
+      column.width = fixedColumnInfo[column.key] = columnConfigItem.style.width
+      fixedTotalWidth += column.width
+    } else {
+      column.width = getDataColumnWidth(expression, columnConfigItem, format, data)
+      column.width = Math.max(+column.width, computeCellWidth(headerConfigItem && headerConfigItem.style, headerText))
+    }
+    calculatedTotalWidth += column.width
+    if (columnConfigItem) {
+      column.sorter = columnConfigItem.sort
+    }
     mapTableHeaderConfig[name] = headerConfigItem
     column.onCell = (record) => ({
       config: columnConfigItem,
@@ -418,6 +490,20 @@ function getTableColumns (props: IChartProps) {
       cellValRange: getTableCellValueRange(data, expression, columnConfigItem)
     })
     tableColumns.push(column)
+  })
+
+  // adjust column width
+  const flexibleTotalWidth = calculatedTotalWidth - fixedTotalWidth
+  const flexibleContainerWidth = width - fixedTotalWidth
+  const containerWidthRatio = flexibleTotalWidth < flexibleContainerWidth
+    ? flexibleContainerWidth / flexibleTotalWidth
+    : 1
+  tableColumns.forEach((column) => {
+    if (fixedColumnInfo[column.key] === void 0) {
+      // Math.floor to avoid creating float column width value and scrollbar showing
+      // not use Math.ceil because it will exceed the container width in total
+      column.width = Math.floor(containerWidthRatio * Number(column.width))
+    }
   })
 
   const groupedColumns: Array<ColumnProps<any>> = []
@@ -469,7 +555,7 @@ function getTableColumns (props: IChartProps) {
     }
   })
 
-  return { tableColumns, mapTableHeaderConfig }
+  return { tableColumns, mapTableHeaderConfig, containerWidthRatio }
 }
 
 function getPaginationOptions (props: IChartProps) {

@@ -23,7 +23,7 @@ import { areComponentsEqual } from 'react-hot-loader'
 
 import { uuid } from 'utils/util'
 import { IViewVariable } from '../types'
-import Resizable, { IResizeCallbackData } from 'libs/react-resizable/lib/Resizable'
+import { Resizable, ResizeCallbackData } from 'libs/react-resizable'
 
 import SourceTable from './SourceTable'
 import SqlEditor from './SqlEditor'
@@ -67,7 +67,7 @@ export class EditorContainer extends React.Component<IEditorContainerProps, IEdi
   public componentDidMount () {
     window.addEventListener('resize', this.setEditorHeight, false)
     // @FIX for this init height, 64px is the height of the hidden navigator in Main.tsx
-    const editorHeight = this.editor.current.clientHeight + 64
+    const editorHeight = this.editor.current.clientHeight
     this.setState({
       editorHeight
     })
@@ -87,12 +87,12 @@ export class EditorContainer extends React.Component<IEditorContainerProps, IEdi
     })
   }
 
-  private siderResize = (_: any, { size }: IResizeCallbackData) => {
+  private siderResize = (_: any, { size }: ResizeCallbackData) => {
     const { width } = size
     this.setState({ siderWidth: width })
   }
 
-  private previewResize = (_: any, { size }: IResizeCallbackData) => {
+  private previewResize = (_: any, { size }: ResizeCallbackData) => {
     const { height } = size
     this.setState(({ editorHeight }) => ({ previewHeight: editorHeight - height }))
   }
@@ -169,6 +169,7 @@ export class EditorContainer extends React.Component<IEditorContainerProps, IEdi
         editorBottom = c
       } else if (areComponentsEqual(type, ViewVariableList)) {
         viewVariableList = React.cloneElement<IViewVariableListProps>(c, {
+          className: Styles.viewVariable,
           onAdd: this.addVariable,
           onDelete: this.deleteVariable,
           onEdit: this.editVariable
@@ -222,8 +223,8 @@ export class EditorContainer extends React.Component<IEditorContainerProps, IEdi
                   onResize={this.previewResize}
                 >
                   <div className={Styles.containerVertical}>
-                    <div className={Styles.editor}>{sqlEditor}</div>
-                    <div className={Styles.list}>{viewVariableList}</div>
+                    {sqlEditor}
+                    {viewVariableList}
                   </div>
                 </Resizable>
               </div>

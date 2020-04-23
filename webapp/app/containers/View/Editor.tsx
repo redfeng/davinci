@@ -24,7 +24,6 @@ import { connect } from 'react-redux'
 import { createStructuredSelector } from 'reselect'
 import memoizeOne from 'memoize-one'
 import Helmet from 'react-helmet'
-import { RouteComponentProps } from 'react-router'
 
 import injectReducer from 'utils/injectReducer'
 import injectSaga from 'utils/injectSaga'
@@ -35,10 +34,12 @@ import sagasSource from 'containers/Source/sagas'
 import reducerProject from 'containers/Projects/reducer'
 import sagasProject from 'containers/Projects/sagas'
 
-import { IRouteParams } from 'app/routes'
+import { RouteComponentWithParams } from 'utils/types'
 import { hideNavigator } from '../App/actions'
 import { ViewActions, ViewActionType } from './actions'
 import { SourceActions, SourceActionType } from 'containers/Source/actions'
+import { OrganizationActions, OrganizationActionType } from 'containers/Organizations/actions'
+
 import {
   makeSelectEditingView,
   makeSelectEditingViewInfo,
@@ -54,7 +55,6 @@ import {
   makeSelectBizs
 } from './selectors'
 
-import { loadProjectRoles } from 'containers/Organizations/actions'
 import { makeSelectProjectRoles } from 'containers/Projects/selectors'
 
 import {
@@ -64,7 +64,7 @@ import {
 import { ISource, ISchema } from '../Source/types'
 import { ViewVariableTypes } from './constants'
 
-import { message } from 'antd'
+import { message, notification, Tooltip } from 'antd'
 import EditorSteps from './components/EditorSteps'
 import EditorContainer from './components/EditorContainer'
 import ModelAuth from './components/ModelAuth'
@@ -115,14 +115,14 @@ interface IViewEditorDispatchProps {
   onLoadProjectRoles: (projectId: number) => void
 }
 
-type IViewEditorProps = IViewEditorStateProps & IViewEditorDispatchProps & RouteComponentProps<{}, IRouteParams>
+type IViewEditorProps = IViewEditorStateProps & IViewEditorDispatchProps & RouteComponentWithParams
 
 interface IViewEditorStates {
   containerHeight: number
   sqlValidationCode: number
   init: boolean
   currentStep: number
-  nextDisabled: boolean
+  lastSuccessExecutedSql: string
 }
 
 
@@ -133,13 +133,14 @@ export class ViewEditor extends React.Component<IViewEditorProps, IViewEditorSta
     currentStep: 0,
     sqlValidationCode: null,
     init: true,
-    nextDisabled: true
+    lastSuccessExecutedSql: null
   }
 
   public constructor (props: IViewEditorProps) {
     super(props)
-    const { onLoadSources, onLoadViewDetail, onLoadProjectRoles, onLoadDacChannels, params } = this.props
-    const { viewId, pid: projectId } = params
+    const { onHideNavigator, onLoadSources, onLoadViewDetail, onLoadProjectRoles, onLoadDacChannels, match } = this.props
+    onHideNavigator()
+    const { viewId, projectId } = match.params
     if (projectId) {
       onLoadSources(+projectId)
       onLoadProjectRoles(+projectId)
@@ -153,45 +154,52 @@ export class ViewEditor extends React.Component<IViewEditorProps, IViewEditorSta
   public static getDerivedStateFromProps:
     React.GetDerivedStateFromProps<IViewEditorProps, IViewEditorStates>
   = (props, state) => {
-    const { params, editingView, sqlValidation } = props
-    const { viewId } = params
+    const { match, editingView, sqlValidation } = props
+    const { viewId } = match.params
     const { init, sqlValidationCode } = state
-    let nextDisabled = state.nextDisabled
+    let lastSuccessExecutedSql = state.lastSuccessExecutedSql
     if (sqlValidationCode !== sqlValidation.code && sqlValidation.code) {
-      message.destroy()
-      message.open({
-        content: `Syntax check ${sqlValidation.message}`,
-        type: sqlValidation.code === 200 ? 'success' : 'error',
-        duration: 5
-      })
-      nextDisabled = (sqlValidation.code !== 200)
+      notification.destroy()
+      sqlValidation.code === 200
+        ? notification.success({
+          message: '执行成功',
+          duration: 3
+        })
+        : notification.error({
+          message: '执行失败',
+          description: (
+            <Tooltip
+              placement="bottom"
+              trigger="click"
+              title={sqlValidation.message}
+              overlayClassName={Styles.errorMessage}
+            >
+              <a>点击查看错误信息</a>
+            </Tooltip>
+          ),
+          duration: null
+        })
+      if (sqlValidation.code === 200) {
+        lastSuccessExecutedSql = editingView.sql
+      }
     }
     if (editingView && editingView.id === +viewId) {
       if (init) {
         props.onLoadSourceDatabases(editingView.sourceId)
-        ViewEditor.ExecuteSql(props)
+        lastSuccessExecutedSql = editingView.sql
         return {
           init: false,
           sqlValidationCode: sqlValidation.code,
-          nextDisabled
+          lastSuccessExecutedSql
         }
       }
-    } else {
-      return {
-        sqlValidationCode: sqlValidation.code,
-        nextDisabled
-      }
     }
-    return { sqlValidationCode: sqlValidation.code, nextDisabled }
-  }
-
-  public componentDidMount () {
-    this.props.onHideNavigator()
-
+    return { sqlValidationCode: sqlValidation.code, lastSuccessExecutedSql }
   }
 
   public componentWillUnmount () {
     this.props.onResetState()
+    notification.destroy()
   }
 
   private executeSql = () => {
@@ -236,8 +244,8 @@ export class ViewEditor extends React.Component<IViewEditorProps, IViewEditorSta
   }
 
   private saveView = () => {
-    const { onAddView, onEditView, editingView, editingViewInfo, projectRoles, params } = this.props
-    const { pid: projectId } = params
+    const { onAddView, onEditView, editingView, editingViewInfo, projectRoles, match } = this.props
+    const { projectId } = match.params
     const { model, variable, roles } = editingViewInfo
     const { id: viewId } = editingView
     const validRoles = roles.filter(({ roleId }) => projectRoles && projectRoles.findIndex(({ id }) => id === roleId) >= 0)
@@ -264,17 +272,13 @@ export class ViewEditor extends React.Component<IViewEditorProps, IViewEditorSta
   }
 
   private goToViewList = () => {
-    const { router, params } = this.props
-    const { pid: projectId } = params
-    router.push(`/project/${projectId}/views`)
+    const { history, match } = this.props
+    const { projectId } = match.params
+    history.push(`/project/${projectId}/views`)
   }
 
   private viewChange = (propName: keyof IView, value: string | number) => {
     const { editingView, onUpdateEditingView } = this.props
-    const nextDisabled = (propName === 'sql' && value !== editingView.sql)
-      ? true
-      : this.state.nextDisabled
-    this.setState({ nextDisabled })
     const updatedView = {
       ...editingView,
       [propName]: value
@@ -359,11 +363,12 @@ export class ViewEditor extends React.Component<IViewEditorProps, IViewEditorSta
       editingView, editingViewInfo,
       onLoadSourceDatabases, onLoadDatabaseTables, onLoadTableColumns, onSetSqlLimit,
       onLoadDacTenants, onLoadDacBizs } = this.props
-    const { currentStep, nextDisabled } = this.state
+    const { currentStep, lastSuccessExecutedSql } = this.state
     const { model, variable, roles: viewRoles } = editingViewInfo
     const sqlHints = this.getSqlHints(editingView.sourceId, schema, variable)
     const containerVisible = !currentStep
     const modelAuthVisible = !!currentStep
+    const nextDisabled = (editingView.sql !== lastSuccessExecutedSql)
 
     return (
       <>
@@ -424,9 +429,9 @@ export class ViewEditor extends React.Component<IViewEditorProps, IViewEditorSta
   }
 }
 
-const mapDispatchToProps = (dispatch: Dispatch<ViewActionType | SourceActionType | any>) => ({
+const mapDispatchToProps = (dispatch: Dispatch<ViewActionType | SourceActionType | OrganizationActionType>) => ({
   onHideNavigator: () => dispatch(hideNavigator()),
-  onLoadViewDetail: (viewId: number) => dispatch(ViewActions.loadViewsDetail([viewId])),
+  onLoadViewDetail: (viewId: number) => dispatch(ViewActions.loadViewsDetail([viewId], null, true)),
   onLoadSources: (projectId) => dispatch(SourceActions.loadSources(projectId)),
   onLoadSourceDatabases: (sourceId) => dispatch(SourceActions.loadSourceDatabases(sourceId)),
   onLoadDatabaseTables: (sourceId, databaseName) => dispatch(SourceActions.loadDatabaseTables(sourceId, databaseName)),
@@ -443,7 +448,7 @@ const mapDispatchToProps = (dispatch: Dispatch<ViewActionType | SourceActionType
   onLoadDacBizs: (channelName, tenantId) => dispatch(ViewActions.loadDacBizs(channelName, tenantId)),
 
   onResetState: () => dispatch(ViewActions.resetViewState()),
-  onLoadProjectRoles: (projectId) => dispatch(loadProjectRoles(projectId))
+  onLoadProjectRoles: (projectId) => dispatch(OrganizationActions.loadProjectRoles(projectId))
 })
 
 const mapStateToProps = createStructuredSelector({

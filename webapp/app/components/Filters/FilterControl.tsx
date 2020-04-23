@@ -1,14 +1,15 @@
 import React, { Component, PureComponent, Suspense, ReactNode } from 'react'
 import {
-  ControlOptions,
   renderInputText,
   renderNumberRange,
   renderSelect,
   renderDate,
-  renderDateRange,
-  deserializeDefaultValue,
-  IControlBase
+  renderDateRange
 } from './'
+import { IControlBase, ControlOptions } from './types'
+import {
+  deserializeDefaultValue
+} from './util'
 import { FilterTypes } from './filterTypes'
 import { Form } from 'antd'
 import { WrappedFormUtils } from 'antd/lib/form/Form'
@@ -26,7 +27,7 @@ interface IFilterControlProps {
   control: IControlBase
   currentOptions: ControlOptions
   parentsInfo?: IParentInfo[]
-  onChange: (control: IControlBase, value, isInputChange?: boolean) => void
+  onChange: (control: IControlBase, value) => void
 }
 
 export class FilterControl extends PureComponent<IFilterControlProps, {}> {
@@ -37,7 +38,7 @@ export class FilterControl extends PureComponent<IFilterControlProps, {}> {
     let component
     switch (filter.type) {
       case FilterTypes.InputText:
-        component = renderInputText(this.inputChange, this.inputSearch)
+        component = renderInputText(this.change)
         break
       case FilterTypes.NumberRange:
         component = renderNumberRange(this.change)
@@ -71,20 +72,6 @@ export class FilterControl extends PureComponent<IFilterControlProps, {}> {
 
   private change = (val) => {
     const { control, onChange } = this.props
-    onChange(control, val)
-  }
-
-  private inputChange = (e) => {
-    const { control, onChange } = this.props
-    let val = e.target.value
-    if (val === '') { val = undefined }
-    onChange(control, val, true)
-  }
-
-  private inputSearch = (e) => {
-    const { control, onChange } = this.props
-    let val = e.target.value
-    if (val === '') { val = undefined }
     onChange(control, val)
   }
 

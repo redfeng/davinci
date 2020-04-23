@@ -18,7 +18,7 @@
  * >>
  */
 
-const defaultEchartsTheme = require('./assets/json/echartsThemes/default.project.json')
+const defaultEchartsTheme = require('assets/json/echartsThemes/default.project.json')
 export const DEFAULT_ECHARTS_THEME = defaultEchartsTheme.theme
 export const DEFAULT_PRIMARY_COLOR = '#1B98E0'
 export const DEFAULT_SECONDARY_COLOR = '#223151'
@@ -27,9 +27,6 @@ export const GRID_BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }
 export const GRID_COLS = { lg: 12, md: 12, sm: 12, xs: 2, xxs: 2 }
 export const GRID_ITEM_MARGIN = 16
 export const GRID_ROW_HEIGHT = 30
-
-export const DEFAULT_BASELINE_THICKNESS = 1.5
-export const DEFAULT_BASELINE_COLOR = '#ecc302'
 
 export const TABLE_HEADER_HEIGHT = 50
 export const TABLE_PAGINATION_HEIGHT = 61
@@ -178,12 +175,15 @@ export const SQL_STRING_TYPES = [
   'STRING', 'TINYTEXT', 'TEXT', 'NTEXT', 'MEDIUMTEXT', 'LONGTEXT',
   'JSON', 'XML', 'LINESTRING', 'MULTILINESTRING',
   'TINYBLOB', 'MEDIUMBLOB', 'BLOB', 'LONGBLOB', 'CBLOB',
-  'BINARY', 'VARBINARY', 'LONGVARBINARY', 'ENUM', 'SET', 'NULL', 'ROWID'
+  'BINARY', 'VARBINARY', 'LONGVARBINARY', 'ENUM', 'SET', 'NULL', 'ROWID',
+  'FIXEDSTRING', 'IPV4', 'IPV6', 'UUID'
 ]
 export const SQL_NUMBER_TYPES = [
   'BIT', 'TINYINT', 'SMALLINT', 'MEDIUMINT', 'INT', 'INTEGER', 'BIGINT',
   'FLOAT', 'DOUBLE', 'DOUBLE PRECISION', 'REAL', 'DECIMAL',
-  'BIT', 'SERIAL', 'BOOL', 'BOOLEAN', 'DEC', 'FIXED', 'NUMBER', 'NUMERIC'
+  'BIT', 'SERIAL', 'BOOL', 'BOOLEAN', 'DEC', 'FIXED', 'NUMBER', 'NUMERIC',
+  'UINT8', 'UINT16', 'UINT32', 'UINT64', 'INT8', 'INT16', 'INT32', 'INT64',
+  'FLOAT32', 'FLOAT64', 'DECIMAL32', 'DECIMAL64', 'DECIMAL128'
 ]
 export const SQL_DATE_TYPES = ['DATE', 'DATETIME', 'TIMESTAMP', 'TIME', 'YEAR']
 

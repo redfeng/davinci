@@ -1,26 +1,27 @@
 import * as React from 'react'
 import { connect } from 'react-redux'
 import { compose } from 'redux'
-import injectReducer from '../../utils/injectReducer'
-import injectSaga from '../../utils/injectSaga'
-import reducer from '../Organizations/reducer'
-import saga from '../Organizations/sagas'
-import Avatar from '../../components/Avatar'
-import Box from '../../components/Box'
+import { withRouter } from 'react-router-dom'
+import injectReducer from 'utils/injectReducer'
+import injectSaga from 'utils/injectSaga'
+import reducer from 'containers/Organizations/reducer'
+import saga from 'containers/Organizations/sagas'
+import Avatar from 'components/Avatar'
+import Box from 'components/Box'
 import Menus from './components/Menus'
 import { Tooltip } from 'antd'
 import { createStructuredSelector } from 'reselect'
-import { makeSelectLoginUser } from '../App/selectors'
+import { makeSelectLoginUser } from 'containers/App/selectors'
+import { RouteComponentWithParams } from 'utils/types'
 
-interface IAccountProps {
+interface IAccountProps extends RouteComponentWithParams {
   loginUser: any,
-  routes: any
 }
 
 const styles = require('./Account.less')
 export class Account extends React.PureComponent<IAccountProps, {}> {
     public render () {
-      const { loginUser, routes } = this.props
+      const { loginUser, location } = this.props
       return (
         <div className={styles.wrapper}>
           <div className={styles.container}>
@@ -40,7 +41,7 @@ export class Account extends React.PureComponent<IAccountProps, {}> {
                   </div>
                   <div className={styles.menu}>
                     <Menus
-                      active={routes[3]['name']}
+                      active={location.pathname.substr(location.pathname.lastIndexOf('/') + 1)}
                     />
                   </div>
                 </Box>
@@ -70,7 +71,8 @@ const withSaga = injectSaga({ key: 'organization', saga })
 export default compose(
   withReducer,
   withSaga,
-  withConnect
+  withConnect,
+  withRouter
 )(Account)
 
 

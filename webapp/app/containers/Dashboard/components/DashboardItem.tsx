@@ -21,34 +21,39 @@
 import React from 'react'
 import Animate from 'rc-animate'
 import classnames from 'classnames'
-
 import DashboardItemControlPanel from './DashboardItemControlPanel'
 import DashboardItemControlForm from './DashboardItemControlForm'
 import DashboardItemMask from './DashboardItemMask'
-import SharePanel from '../../../components/SharePanel'
-import DownloadCsv, { IDownloadCsvProps } from '../../../components/DownloadCsv'
-import DataDrill from '../../../components/DataDrill/Panel'
-import DataDrillHistory from '../../../components/DataDrill/History'
+import SharePanel from 'components/SharePanel'
+import DownloadCsv, { IDownloadCsvProps } from 'components/DownloadCsv'
+import DataDrill from 'components/DataDrill/Panel'
+import DataDrillHistory from 'components/DataDrill/History'
 import { IFormedView, IViewModel } from 'containers/View/types'
 
-import Widget, { IWidgetConfig, IPaginationParams, RenderType } from '../../Widget/components/Widget'
-import { ChartTypes } from '../../Widget/config/chart/ChartTypes'
+import Widget, { IWidgetConfig, IPaginationParams, RenderType } from 'containers/Widget/components/Widget'
+import { ChartTypes } from 'containers/Widget/config/chart/ChartTypes'
+import { DrillableChart } from 'containers/Widget/config/chart/DrillableChart'
 import { IconProps } from 'antd/lib/icon'
 import { Icon, Tooltip, Popconfirm, Popover, Dropdown, Menu } from 'antd'
+import { getPagination, getNativeQuery} from 'containers/Viz/utils'
 
-import ModulePermission from '../../Account/components/checkModulePermission'
-import ShareDownloadPermission from '../../Account/components/checkShareDownloadPermission'
-import { IProject } from '../../Projects'
+import ModulePermission from 'containers/Account/components/checkModulePermission'
+import ShareDownloadPermission from 'containers/Account/components/checkShareDownloadPermission'
+import { IProject } from 'containers/Projects/types'
 import { IQueryConditions, IQueryVariableMap } from '../Grid'
-import { IMapControlOptions, OnGetControlOptions, IDistinctValueReqeustParams } from 'app/components/Filters'
+import { IMapControlOptions, OnGetControlOptions, IDistinctValueReqeustParams, IFilters } from 'app/components/Filters/types'
+import { ICurrentDataInFullScreenProps } from './fullScreenPanel/FullScreenPanel'
 const styles = require('../Dashboard.less')
-const utilStyles = require('../../../assets/less/util.less')
+const utilStyles = require('assets/less/util.less')
 
+export type IGetChartData = (renderType: RenderType, itemId: number, widgetId: number, queryConditions?: any) => void
+ 
 interface IDashboardItemProps {
   itemId: number
   widget: any
   widgets: any
   view?: Partial<IFormedView>
+  isTrigger?: boolean
   datasource: any
   loading: boolean
   polling: string
@@ -68,8 +73,9 @@ interface IDashboardItemProps {
   currentProject?: IProject
   queryConditions: IQueryConditions
   container?: string
+  errorMessage: string
   onSelectDrillHistory?: (history?: any, item?: number, itemId?: number, widgetId?: number) => void
-  onGetChartData: (renderType: RenderType, itemId: number, widgetId: number, queryConditions?: any) => void
+  onGetChartData: IGetChartData
   onShowEdit?: (itemId: number) => (e: React.MouseEvent<HTMLSpanElement>) => void
   onShowDrillEdit?: (itemId: number) => (e: React.MouseEvent<HTMLSpanElement>) => void
   onDeleteDashboardItem?: (itemId: number) => () => void
@@ -84,6 +90,8 @@ interface IDashboardItemProps {
   onDrillPathData?: (e: object) => void
   onSelectChartsItems?: (itemId: number, renderType: string, selectedItems: number[]) => void
   onGetControlOptions: OnGetControlOptions
+  monitoredSyncDataAction?: () => any
+  monitoredSearchDataAction?: () => any
 }
 
 interface IDashboardItemStates {
@@ -137,8 +145,8 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
     const { cacheWidgetProps, cacheWidgetId } = this.state
     const widgetProps = JSON.parse(widget.config)
     const { autoLoadData } = widgetProps
-    const pagination = this.getPagination(widgetProps, datasource)
-    const nativeQuery = this.getNativeQuery(widgetProps)
+    const pagination = getPagination(widgetProps, datasource)
+    const nativeQuery = getNativeQuery(widgetProps)
     if (container === 'share') {
       if (autoLoadData === true || autoLoadData === undefined) {
         onGetChartData('clear', itemId, widget.id, { pagination, nativeQuery })
@@ -183,7 +191,7 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
       })
     }
 
-    pagination = this.getPagination(widgetProps, nextProps.datasource)
+    pagination = getPagination(widgetProps, nextProps.datasource)
     this.setState({
       pagination
     })
@@ -220,36 +228,6 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
     clearInterval(this.pollingTimer)
   }
 
-  // @FIXME need refactor
-  private getPagination = (widgetProps: IWidgetConfig, datasource) => {
-    const { chartStyles } = widgetProps
-    const { table } = chartStyles
-    if (!table) { return null }
-
-    const { withPaging, pageSize } = table
-    const pagination: IPaginationParams = {
-      withPaging,
-      pageSize: 0,
-      pageNo: 0,
-      totalCount: datasource.totalCount || 0
-    }
-    if (pagination.withPaging) {
-      pagination.pageSize = datasource.pageSize || +pageSize
-      pagination.pageNo = datasource.pageNo || 1
-    }
-    return pagination
-  }
-
-  private getNativeQuery = (widgetProps: IWidgetConfig) => {
-    let noAggregators = false
-    const { chartStyles } = widgetProps
-    const { table } = chartStyles
-    if (table) {
-      noAggregators = table.withNoAggregators
-    }
-    return noAggregators
-  }
-
   private initPolling = (props: IDashboardItemProps) => {
     const {
       polling,
@@ -273,20 +251,28 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
     const {
       itemId,
       widget,
-      onGetChartData
+      onGetChartData,
+      monitoredSyncDataAction
     } = this.props
     const { pagination, nativeQuery } = this.state
-    onGetChartData('refresh', itemId, widget.id, { pagination, nativeQuery })
+    onGetChartData('flush', itemId, widget.id, { pagination, nativeQuery })
+    if (monitoredSyncDataAction) {
+      monitoredSyncDataAction()
+    }
   }
 
   private onControlSearch = (queryConditions: Partial<IQueryConditions>) => {
     const {
       itemId,
       widget,
-      onGetChartData
+      onGetChartData,
+      monitoredSearchDataAction
     } = this.props
     const { pagination, nativeQuery } = this.state
     onGetChartData('clear', itemId, widget.id, { ...queryConditions, pagination, nativeQuery })
+    if (monitoredSearchDataAction) {
+      monitoredSearchDataAction()
+    }
   }
 
   private toggleControlPanel = () => {
@@ -301,8 +287,7 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
       itemId,
       widget,
       loading,
-      renderType,
-      onGetChartData
+      renderType
     } = this.props
 
     if (onShowFullScreen) {
@@ -311,8 +296,7 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
         widget,
         model: this.state.model,
         loading,
-        renderType,
-        onGetChartData
+        renderType
       })
     }
   }
@@ -338,8 +322,8 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
     onDoTableInteract(itemId, triggerData)
   }
 
-  private paginationChange = (pageNo: number, pageSize: number) => {
-    const { onGetChartData, itemId, widget } = this.props
+  private paginationChange = (pageNo: number, pageSize: number, orders) => {
+    const { onGetChartData, itemId, widget, drillHistory } = this.props
     let { pagination } = this.state
     const { nativeQuery } = this.state
     pagination = {
@@ -347,7 +331,12 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
       pageNo,
       pageSize
     }
-    onGetChartData('clear', itemId, widget.id, { pagination, nativeQuery })
+    if (drillHistory && drillHistory.length) {
+      const drillStatus = drillHistory[drillHistory.length - 1]
+      onGetChartData('clear', itemId, widget.id, { pagination, nativeQuery, orders, drillStatus })
+    } else {
+      onGetChartData('clear', itemId, widget.id, { pagination, nativeQuery, orders })
+    }
   }
 
   private turnOffInteract = () => {
@@ -479,6 +468,7 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
     })
     const nextWidget = widgets.find((w) => w.id === Number(widget))
     const widgetProps = JSON.parse(nextWidget.config)
+    // todo  filter 重构
     const sql = `${enter} in (${value.map((key) => `'${key}'`).join(',')})`
     let sqls = widgetProps.filters.map((i) => i.config.sql)
     sqls.push(sql)
@@ -692,9 +682,9 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
       onSelectDrillHistory,
       onDeleteDashboardItem,
       onLoadWidgetShareLink,
-      container
+      container,
+      errorMessage
     } = this.props
-
     const data = datasource.resultList
 
     const {
@@ -807,23 +797,45 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
     }
 
     const controls = widgetProps.controls
-    const controlPanelHandle = controls.length
-      ? (
-        <Tooltip title="选择参数">
-          <Icon
-            className={styles.control}
-            type={controlPanelVisible ? 'up-square-o' : 'down-square-o'}
-            onClick={this.toggleControlPanel}
-          />
-        </Tooltip>
-      ) : ''
+    const controlToggle = !!controls.length && (
+      <Tooltip title="选择参数">
+        <Icon
+          className={styles.toggle}
+          type={controlPanelVisible ? 'up-square-o' : 'down-square-o'}
+          onClick={this.toggleControlPanel}
+        />
+      </Tooltip>
+    )
 
-    const descPanelHandle = widget.desc
-      ? (
-        <Popover placement="bottom" content={<p className={styles.descPanel}>{widget.desc}</p>}>
-          <Icon className={styles.desc} type="question-circle-o" />
-        </Popover>
-      ) : ''
+    const loadingIcon = loading && <Icon className={styles.toggle} type="loading" />
+
+    const descToggle = widget.description && (
+      <Popover
+        placement="bottomLeft"
+        content={widget.description}
+        overlayClassName={styles.widgetInfoContent}
+      >
+        <Icon className={styles.toggle} type="info-circle" />
+      </Popover>
+    )
+
+    const errorToggle = errorMessage && (
+      <Tooltip
+        title={(
+          <>
+            <p>错误信息：</p>
+            <p>{errorMessage}</p>
+          </>
+        )}
+        placement="bottomLeft"
+        overlayClassName={styles.widgetInfoContent}
+      >
+        <Icon
+          className={`${styles.toggle} ${styles.error}`}
+          type="warning"
+        />
+      </Tooltip>
+    )
 
     const controlPanelTransitionName = {
       enter: styles.controlPanelEnter,
@@ -841,6 +853,16 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
       [styles.gridItem]: true,
       [styles.interact]: interacting
     })
+    const isDrillableChart = DrillableChart.some((drillable) => drillable === widgetProps.selectedChart)
+    const drillInteractIcon = this.props.isTrigger === false ? isDrillableChart
+                                                                ? (<Tooltip title="可钻取"><i className="iconfont icon-xiazuan"/></Tooltip>)
+                                                                : void 0
+                                                              : (<Tooltip title="可联动"><i className="iconfont icon-liandong1"/></Tooltip>)
+    const triggerClass = classnames({
+      [styles.trigger]: true,
+      [utilStyles.hide]: this.props.isTrigger === false
+    })
+
     let isSelectedData = false
     if (this.state.whichDataDrillBrushed) {
       (this.state.whichDataDrillBrushed as object[]).forEach((brushed, index) => {
@@ -916,14 +938,17 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
       />
     )
 
+
     return (
       <div className={gridItemClass} ref={(f) => this.container = f}>
         <div className={styles.header}>
           <div className={styles.title}>
-            {controlPanelHandle}
+            {controlToggle}
             <h4>{widget.name}</h4>
-            {loading && <Icon className={styles.control} type="loading" />}
-            {descPanelHandle}
+            {loadingIcon}
+            {descToggle}
+            {errorToggle}
+            {}
           </div>
           <div className={styles.tools}>
             <Tooltip title="同步数据">
@@ -931,7 +956,7 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
             </Tooltip>
             {widgetButton}
             <Tooltip title="全屏">
-              <Icon type="arrows-alt" onClick={this.onFullScreen} className={styles.fullScreen} />
+              <Icon type="fullscreen" onClick={this.onFullScreen} className={styles.fullScreen} />
             </Tooltip>
             {shareButton}
             {downloadButton}
@@ -939,6 +964,13 @@ export class DashboardItem extends React.PureComponent<IDashboardItemProps, IDas
           </div>
         </div>
 
+        {/* <div className={triggerClass}>
+          <i className="iconfont icon-icon_linkage"/>
+        </div> */}
+
+        <div className={styles.trigger}>
+          {drillInteractIcon}
+        </div>
         <div
           className={styles.offInteract}
           onClick={this.turnOffInteract}

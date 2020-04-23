@@ -21,13 +21,12 @@
 import React from 'react'
 import { ColumnProps } from 'antd/lib/table'
 import { Resizable } from 'libs/react-resizable'
-import { IResizeCallbackData } from 'libs/react-resizable/lib/Resizable'
-import { ITableHeaderConfig } from '../../../Workbench/ConfigSections/TableSection'
-import { DefaultTableCellStyle } from '../../../Workbench/ConfigSections/TableSection/HeaderConfigModal'
+import { ResizeCallbackData } from 'libs/react-resizable'
+import { ITableHeaderConfig, DefaultTableCellStyle } from 'containers/Widget/components/Config/Table'
 import { textAlignAdapter, traverseConfig } from '../util'
 
 interface IHeadCellProps {
-  onResize: (e: any, data: IResizeCallbackData) => any
+  onResize: (e: any, data: ResizeCallbackData) => any
   width: number
   config: ITableHeaderConfig
 }
@@ -52,10 +51,9 @@ function HeadCell (props: IHeadCellProps) {
   )
 }
 
-export function resizeTableColumns (columns: Array<ColumnProps<any>>, columnIndex: number, width: number) {
+export function resizeTableColumns (columns: Array<ColumnProps<any>>, columnIndex: number, width: number, ratio: number) {
   const nextColumns = [...columns]
   const resizedColumn = nextColumns[columnIndex]
-  const ratio = Number((width / (+resizedColumn.width)).toFixed(2))
   nextColumns[columnIndex] = {
     ...resizedColumn,
     width

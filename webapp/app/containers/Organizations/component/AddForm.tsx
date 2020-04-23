@@ -1,12 +1,12 @@
 import React from 'react'
 import classnames from 'classnames'
 import debounce from 'lodash/debounce'
-import { IOrganizationMembers } from '../../Organizations/Organization'
+import { IOrganizationMember } from 'containers/Organizations/types'
 import { Button, Form, Input, Icon } from 'antd'
 const FormItem = Form.Item
 const InputGroup = Input.Group
 const styles = require('../Team.less')
-const utilStyles =  require('../../../assets/less/util.less')
+const utilStyles =  require('assets/less/util.less')
 
 
 interface IAddFormProps {
@@ -19,14 +19,11 @@ interface IAddFormProps {
 }
 
 interface IAddFormStates {
-    searchValue: string
-}
-
-interface IAddFormStates {
   visible: boolean
   isDisabled: boolean
+  searchValue: string
   inviteMemberInputValue: string
-  filteredCurrentOrganizationMembers: IOrganizationMembers[]
+  filteredCurrentOrganizationMembers: IOrganizationMember[]
 }
 
 export class AddForm extends React.PureComponent<IAddFormProps, IAddFormStates> {
@@ -35,6 +32,7 @@ export class AddForm extends React.PureComponent<IAddFormProps, IAddFormStates> 
     this.state = {
       visible: false,
       isDisabled: true,
+      searchValue: '',
       inviteMemberInputValue: '',
       filteredCurrentOrganizationMembers: []
     }

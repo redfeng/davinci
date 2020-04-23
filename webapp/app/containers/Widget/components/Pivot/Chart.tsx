@@ -3,9 +3,9 @@ import * as echarts from 'echarts/lib/echarts'
 import { IDrawingData, IMetricAxisConfig, ILegend } from './Pivot'
 import { IWidgetMetric, DimetionType, RenderType, IChartStyles } from '../Widget'
 import chartOptionGenerator from '../../render/pivot'
-import { PIVOT_DEFAULT_SCATTER_SIZE } from '../../../../globalConstants'
+import { PIVOT_DEFAULT_SCATTER_SIZE } from 'app/globalConstants'
 import { decodeMetricName, getTooltipPosition, getPivotTooltipLabel, getSizeValue, getChartLabel, getTriggeringRecord } from '../util'
-import { uuid } from '../../../../utils/util'
+import { uuid } from 'utils/util'
 import { IDataParamProperty } from '../Workbench/OperatingPanel'
 import PivotTypes from '../../config/pivot/PivotTypes'
 const styles = require('./Pivot.less')
@@ -271,7 +271,7 @@ export class Chart extends React.Component<IChartProps, IChartStates> {
                 if (!(currentScatterXAxisItem && m.chart.id === PivotTypes.Scatter)) {
                   grid.push({
                     top: dimetionAxis === 'col' ? (xSum + l * height) : ySum,
-                    left: dimetionAxis === 'col' ? ySum - 1 : (xSum - 1 + l * width),    // 隐藏yaxisline
+                    left: dimetionAxis === 'col' ? ySum - 1 : (xSum - 1 + l * width),    // 隐藏yaxisline
                     width,
                     height
                   })
@@ -313,14 +313,14 @@ export class Chart extends React.Component<IChartProps, IChartStates> {
                         if (dimetionAxis === 'col') {
                           grid.push({
                             top: tempXsum + l * unitMetricHeight,
-                            left: tempYsum - 1,    // 隐藏yaxisline
+                            left: tempYsum - 1,    // 隐藏yaxisline
                             width: elementSize,
                             height: unitMetricHeight
                           })
                         } else {
                           grid.push({
                             top: tempYsum,
-                            left: tempXsum - 1 + l * unitMetricWidth,    // 隐藏yaxisline
+                            left: tempXsum - 1 + l * unitMetricWidth,    // 隐藏yaxisline
                             width: unitMetricWidth,
                             height: elementSize
                           })
@@ -436,14 +436,14 @@ export class Chart extends React.Component<IChartProps, IChartStates> {
                         if (dimetionAxis === 'col') {
                           grid.push({
                             top: tempXsum + l * unitMetricHeight,
-                            left: tempYsum - 1,    // 隐藏yaxisline
+                            left: tempYsum - 1,    // 隐藏yaxisline
                             width: elementSize,
                             height: unitMetricHeight
                           })
                         } else {
                           grid.push({
                             top: tempYsum,
-                            left: tempXsum - 1 + l * unitMetricWidth,    // 隐藏yaxisline
+                            left: tempXsum - 1 + l * unitMetricWidth,    // 隐藏yaxisline
                             width: unitMetricWidth,
                             height: elementSize
                           })
@@ -685,7 +685,7 @@ export class Chart extends React.Component<IChartProps, IChartStates> {
             instance.off('click')
             instance.on('click', (params) => {
               this.collectSelectedItems(params, seriesData)
-              const isInteractiveChart =onCheckTableInteract && onCheckTableInteract()
+              const isInteractiveChart = onCheckTableInteract && onCheckTableInteract()
               if (isInteractiveChart) {
                 const triggerData = getTriggeringRecord(params, seriesData)
                 onDoInteract(triggerData)
